@@ -20,12 +20,12 @@ Get the plugin instance
 
 Check if it loaded successfully, and call the method  
 
-    if adc:      
-        # Get capabilities (saves to user dir, returns JSON string)
+    if aide:      
+        # Get capabilities: saves camera_capabilities.json to user dir, returns JSON string.
         var capabilities_json = aide.getCameraCapabilities()
         
-        # As per above, but also save to Documents with timestamp
-        var capabilities_with_docs = aide.getCameraCapabilities(true)
+        # As per above, but also saves to Documents/<project-name>/<dir>/camera_capabilities_{timestamp}.json
+        var capabilities_with_docs = aide.getCameraCapabilitiesToFile("dir")
         
     else:
         print("Plugin not found - are you running on Android?")
@@ -61,6 +61,10 @@ Detects multi-lens setups with sync type info. Well... it *Should*. Currently un
 #### Building from source:
 
 Sure, why not? Enjoy. 😉 [TODO]: Document source build
+
+### Licensing
+Code: The Unlicense  
+Build tooling: Gradle Wrapper (Apache-2.0), see THIRD_PARTY_NOTICES.md  
 
 ### Support me! 🥛🍞
 

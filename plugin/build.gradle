@@ -16,17 +16,17 @@ apply plugin: 'kotlin-android'
 android {
     compileSdk 34
     namespace 'com.sixdegreesofcrispybacon.aidedecam'
-    
+
     defaultConfig {
         minSdk 21
         targetSdk 34
     }
-    
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
     }
-    
+
     kotlinOptions {
         jvmTarget = '17'
     }
@@ -51,7 +51,12 @@ repositories {
 }
 
 dependencies {
-    implementation fileTree(dir: 'libs', include: ['*.jar', '*.aar'])
+    // Compile against Godot from Maven Central; do NOT bundle Godot into the plugin AAR.
+    compileOnly "org.godotengine:godot:4.3.0.stable"
+
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     implementation 'androidx.core:core-ktx:1.12.0'
+
+    // Keep this ONLY if you actually have local .jar libs you want to include.
+    // implementation fileTree(dir: 'libs', include: ['*.jar'])
 }
