@@ -62,6 +62,10 @@ Detects multi-lens setups with sync type info. Well... it *Should*. Currently un
 
 Sure, why not? Enjoy. 😉 [TODO]: Document source build
 
+### Licensing
+Code: The Unlicense  
+Build tooling: Gradle Wrapper (Apache-2.0), see THIRD_PARTY_NOTICES.md  
+
 ### Support me! 🥛🍞
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/L4L81SGS9W)

@@ -25,42 +25,67 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
         private const val CONCURRENT_CAMERA_SDK = 30 // Android 11
     }
 
+    init {
+        android.util.Log.i("AideDeCam", "Plugin initialized!")
+    }
+
     override fun getPluginName() = "AideDeCam"
 
-    @UsedByGodot
-    fun getCameraCapabilities(saveToDocuments: Boolean = false): String {
-        val sdkVersion = Build.VERSION.SDK_INT
-        
-        // Check SDK version first
-        if (sdkVersion < MIN_SDK_VERSION) {
-            return createErrorJson(
-                "SDK version too low. Camera2 API requires SDK $MIN_SDK_VERSION or higher. Current SDK: $sdkVersion"
-            )
-        }
+    override fun getPluginMethods(): List<String> = listOf(
+    "getCameraCapabilities",
+    "getCameraCapabilitiesToFile"
+)
 
-        if (!checkCameraPermission()) {
-            return createErrorJson("Camera permission not granted", sdkVersion)
-        }
+@UsedByGodot
+fun getCameraCapabilities(): String {
+    // True 0-arg entry point for GDScript dot-calls.
+    // Does NOT write a duplicate into Documents.
+    return getCameraCapabilitiesInternal(null)
+}
 
-        val cameraManager = activity?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
-            ?: return createErrorJson("Unable to access Camera Manager", sdkVersion)
+@UsedByGodot
+fun getCameraCapabilitiesToFile(documentsSubdir: String): String {
+    // Writes a duplicate JSON file under:
+    //   Documents/<app-name>/(documentsSubdir)/
+    // Passing "." or "" means: Documents/<app-name>/
+    return getCameraCapabilitiesInternal(documentsSubdir)
+}
 
-        return try {
-            val capabilitiesJson = buildCapabilitiesJson(cameraManager, sdkVersion)
-            
-            // Always save to user dir
-            saveToUserDir(capabilitiesJson)
-            
-            // Optionally save to Documents
-            if (saveToDocuments) {
-                saveToDocuments(capabilitiesJson)
-            }
-            
-            capabilitiesJson
-        } catch (e: Exception) {
-            createErrorJson("Error gathering camera capabilities: ${e.message}", sdkVersion)
-        }
+private fun getCameraCapabilitiesInternal(documentsSubdirOrNull: String?): String {
+    val sdkVersion = Build.VERSION.SDK_INT
+
+    // Check SDK version first
+    if (sdkVersion < MIN_SDK_VERSION) {
+        return createErrorJson(
+            "SDK version too low. Camera2 API requires SDK $MIN_SDK_VERSION or higher. Current SDK: $sdkVersion"
+        )
     }
+
+    if (!checkCameraPermission()) {
+        return createErrorJson("Camera permission not granted", sdkVersion)
+    }
+
+    val cameraManager = activity?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+        ?: return createErrorJson("Unable to access Camera Manager", sdkVersion)
+
+    return try {
+        val capabilitiesJson = buildCapabilitiesJson(cameraManager, sdkVersion)
+
+        // Always save to user dir
+        saveToUserDir(capabilitiesJson)
+
+        // Optionally write a duplicate to Documents/<app-name>/(documentsSubdir)/
+        if (documentsSubdirOrNull != null) {
+            saveToDocuments(capabilitiesJson, documentsSubdirOrNull)
+        }
+
+        capabilitiesJson
+    } catch (e: Exception) {
+        createErrorJson("Error gathering camera capabilities: ${e.message}", sdkVersion)
+    }
+}
+
+
 
     private fun buildCapabilitiesJson(cameraManager: CameraManager, sdkVersion: Int): String {
         val rootObject = JSONObject()
@@ -209,25 +234,41 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
                 }
             } ?: cameraWarnings.add("FPS ranges not provided by vendor")
 
-            // Logical multi-camera support (Android 9+)
-            if (sdkVersion >= 28) {
-                characteristics.get(CameraCharacteristics.LOGICAL_MULTI_CAMERA_SENSOR_SYNC_TYPE)?.let {
-                    cameraObject.put("multi_camera_sync_type", getMultiCameraSyncType(it))
-                }
-                
-                characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)?.let { caps ->
-                    cameraObject.put("is_logical_multi_camera", 
-                        caps.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA))
-                    
-                    if (caps.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA)) {
-                        characteristics.get(CameraCharacteristics.LOGICAL_MULTI_CAMERA_PHYSICAL_IDS)?.let { ids ->
-                            val physicalIdsArray = JSONArray()
-                            ids.forEach { id -> physicalIdsArray.put(id) }
-                            cameraObject.put("physical_camera_ids", physicalIdsArray)
-                        }
-                    }
-                }
-            }
+
+			// Logical multi-camera support (Android 9+)
+			if (sdkVersion >= 28) {
+				characteristics.get(CameraCharacteristics.LOGICAL_MULTI_CAMERA_SENSOR_SYNC_TYPE)?.let {
+					cameraObject.put("multi_camera_sync_type", getMultiCameraSyncType(it))
+				}
+				
+				characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)?.let { caps ->
+					cameraObject.put("is_logical_multi_camera", 
+						caps.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA))
+					
+					if (caps.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA)) {
+						// Use reflection to access LOGICAL_MULTI_CAMERA_PHYSICAL_IDS (API 28+)
+						try {
+							val physicalIdsKey = CameraCharacteristics::class.java
+								.getDeclaredField("LOGICAL_MULTI_CAMERA_PHYSICAL_IDS")
+								.get(null) as CameraCharacteristics.Key<*>
+							
+							@Suppress("UNCHECKED_CAST")
+							val physicalIds = characteristics.get(physicalIdsKey as CameraCharacteristics.Key<Set<String>>)
+							
+							physicalIds?.let { ids ->
+								val physicalIdsArray = JSONArray()
+								for (id in ids) {
+									physicalIdsArray.put(id)
+								}
+								cameraObject.put("physical_camera_ids", physicalIdsArray)
+							}
+						} catch (e: Exception) {
+							// Field not available, skip physical IDs
+							cameraWarnings.add("Logical multi-camera detected but physical IDs unavailable")
+						}
+					}
+				}
+			}
 
             // Add warnings if any
             if (cameraWarnings.isNotEmpty()) {
@@ -286,30 +327,33 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
         }
     }
 
-    private fun getFormatName(format: Int): String {
-        return when (format) {
-            0x1 -> "RGBA_8888"
-            0x2 -> "RGBX_8888"
-            0x3 -> "RGB_888"
-            0x4 -> "RGB_565"
-            0x11 -> "NV16"
-            0x14 -> "NV21"
-            0x20 -> "YUY2"
-            0x22 -> "JPEG"
-            0x23 -> "YUV_420_888"
-            0x25 -> "YUV_422_888"
-            0x27 -> "YUV_444_888"
-            0x28 -> "FLEX_RGB_888"
-            0x29 -> "FLEX_RGBA_8888"
-            0x100 -> "RAW_SENSOR"
-            0x20 -> "RAW10"
-            0x25 -> "RAW12"
-            0x2C -> "DEPTH16"
-            0x44 -> "DEPTH_POINT_CLOUD"
-            0x45 -> "PRIVATE"
-            else -> "UNKNOWN_$format"
-        }
+	private fun getFormatName(format: Int): String {
+    // Using actual Android ImageFormat constants
+    return when (format) {
+        1 -> "RGBA_8888"
+        2 -> "RGBX_8888"
+        3 -> "RGB_888"
+        4 -> "RGB_565"
+        16 -> "NV16"
+        17 -> "NV21"
+        20 -> "YUY2"
+        32 -> "YV12"
+        34 -> "PRIVATE"
+        35 -> "YUV_420_888"
+        37 -> "RAW10"
+        39 -> "YUV_444_888"
+        40 -> "FLEX_RGB_888"
+        41 -> "FLEX_RGBA_8888"
+        44 -> "DEPTH16"
+        45 -> "RAW12"
+        46 -> "RAW_PRIVATE"
+        68 -> "DEPTH_POINT_CLOUD"
+        256 -> "JPEG"
+        257 -> "DEPTH_JPEG"
+        4098 -> "HEIC"
+        else -> "UNKNOWN_$format"
     }
+}
 
     private fun getMultiCameraSyncType(syncType: Int): String {
         return when (syncType) {
@@ -344,17 +388,62 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
         file.writeText(json)
     }
 
-    private fun saveToDocuments(json: String) {
-        val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-        if (!documentsDir.exists()) {
-            documentsDir.mkdirs()
-        }
-        
-        val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val filename = "camera_capabilities_$timestamp.json"
-        val file = File(documentsDir, filename)
-        file.writeText(json)
+    private fun getSafeAppFolderName(): String {
+    val ctx = activity ?: return "GodotApp"
+    val pm = ctx.packageManager
+    val label = try {
+        ctx.applicationInfo.loadLabel(pm).toString()
+    } catch (_: Exception) {
+        null
     }
+	val raw = (label?.takeIf { it.isNotBlank() } ?: ctx.packageName).trim()
+
+    // Keep it filesystem-friendly and deterministic.
+    val sanitized = raw.map { ch ->
+        when {
+            ch.isLetterOrDigit() -> ch
+            ch == ' ' || ch == '.' || ch == '_' || ch == '-' -> ch
+            else -> '_'
+        }
+    }.joinToString("").trim()
+
+    return if (sanitized.isNotEmpty()) sanitized else "GodotApp"
+}
+
+private fun sanitizeDocumentsSubdir(raw: String): String {
+    // Normalize separators, strip leading/trailing, drop '.' and '..' segments.
+    val normalized = raw.replace('\\', '/').trim()
+    val parts = normalized.split('/')
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && it != "." && it != ".." }
+
+    return parts.joinToString(File.separator)
+}
+
+private fun saveToDocuments(json: String, documentsSubdir: String) {
+    val documentsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+    if (!documentsRoot.exists()) {
+        documentsRoot.mkdirs()
+    }
+
+    val appDir = File(documentsRoot, getSafeAppFolderName())
+    if (!appDir.exists()) {
+        appDir.mkdirs()
+    }
+
+    val sanitizedSubdir = sanitizeDocumentsSubdir(documentsSubdir)
+    val targetDir = if (sanitizedSubdir.isEmpty()) appDir else File(appDir, sanitizedSubdir)
+    if (!targetDir.exists()) {
+        targetDir.mkdirs()
+    }
+
+    val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+    val filename = "camera_capabilities_$timestamp.json"
+    val file = File(targetDir, filename)
+    file.writeText(json)
+}
+
+
 
     private fun checkCameraPermission(): Boolean {
         return activity?.let {

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.sixdegreesofcrispybacon.aidedecam">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
     
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
@@ -8,7 +7,7 @@
     
     <application>
         <meta-data
-            android:name="com.godotengine.plugin.v2.AideDeCam"
+            android:name="org.godotengine.plugin.v2.AideDeCam"
             android:value="com.sixdegreesofcrispybacon.aidedecam.AideDeCam" />
     </application>
 </manifest>
