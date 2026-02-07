@@ -44,7 +44,7 @@ Collects warnings for missing or invalid vendor data
 Per-camera warnings array + global warnings summary
 
 Logical Multi-Camera:  
-Detects multi-lens setups with sync type info. Well... it *Should*. Untested as @The-Cyber-Captain has no such hardware.
+Detects multi-lens setups with sync type info. Well... it *Should*. Currently untested as [@The-Cyber-Captain](https://github.com/The-Cyber-Captain) has no such hardware.
 
 ### Installation
 
