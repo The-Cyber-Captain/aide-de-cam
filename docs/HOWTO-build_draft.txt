@@ -1,0 +1,53 @@
+cd path\to\Aide-De-Cam\plugin
+
+# First time only - generate Gradle wrapper
+gradle wrapper --gradle-version 8.2
+
+# Build the plugin
+gradlew.bat assembleRelease
+```
+
+The built AAR will be at:
+```
+plugin/build/outputs/aar/plugin-release.aar
+```
+
+## Install in Your Godot Project
+
+### 1. Set up Godot project structure
+
+In your Godot project root, create:
+```
+YourGodotProject/
+├── android/
+│   ├── plugins/
+│   │   ├── AideDeCam.aar
+│   │   └── AideDeCam.gdap
+│   └── build/
+```
+
+### 2. Copy the built AAR
+
+Copy:
+```
+Aide-De-Cam/plugin/build/outputs/aar/plugin-release.aar
+```
+
+To:
+```
+YourGodotProject/android/plugins/AideDeCam.aar
+```
+
+### 3. Create AideDeCam.gdap
+
+In `YourGodotProject/android/plugins/AideDeCam.gdap`:
+```
+[config]
+name="AideDeCam"
+binary_type="local"
+binary="AideDeCam.aar"
+
+[dependencies]
+local=[]
+remote=[]
+custom_maven_repos=[]
