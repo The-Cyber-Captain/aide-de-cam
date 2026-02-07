@@ -25,3 +25,38 @@ replay_pid*
 
 # Kotlin Gradle plugin data, see https://kotlinlang.org/docs/whatsnew20.html#new-directory-for-kotlin-data-in-gradle-projects
 .kotlin/
+
+### Android-specific additions ###
+
+# Local configuration file (contains SDK path with your username)
+local.properties
+
+# Gradle files
+.gradle/
+build/
+*/build/
+
+# Android Studio / IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+.navigation/
+captures/
+output.json
+
+# External native build
+.externalNativeBuild/
+.cxx/
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+*~
+
+# Godot AAR library (large binary, download separately)
+plugin/libs/*.aar
+
+# Generated APK/AAB files
+*.apk
+*.aab
