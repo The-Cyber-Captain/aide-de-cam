@@ -60,7 +60,7 @@ Detects multi-lens setups with sync type info. Well... it *Should*. Currently un
   
 #### Building from source:
 
-Sure, why not? Enjoy. 😉 [TODO]: Document source build
+Sure, why not? Enjoy. 😉 [WIP]: See: docs/HOWTO-build_draft.txt
 
 ### Licensing
 Code: The Unlicense  

@@ -1,0 +1,1 @@
+Release zips include the prebuilt AAR here; source builds generate it.
