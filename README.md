@@ -9,7 +9,7 @@
 
 ## Compatibility
 - Built against: Godot 4.3
-- ~~Tested with: Godot 4.3, 4.4, 4.5, 4.6~~
+- Tested with: Godot ~~4.3, 4.4,~~ 4.5, ~~4.6~~
 - Should work with future Godot 4.x releases
 
 ### How to use:
@@ -60,11 +60,13 @@ Detects multi-lens setups with sync type info. Well... it *Should*. Currently un
   
 #### Building from source:
 
-Sure, why not? Enjoy. 😉 [WIP]: See: docs/HOWTO-build_draft.txt
+Sure, why not? Enjoy. 😉  
+[WIP]: See: docs/HOWTO-build_draft.txt
 
 ### Licensing
 Code: The Unlicense  
-Build tooling: Gradle Wrapper (Apache-2.0), see THIRD_PARTY_NOTICES.md  
+Build tooling: Gradle Wrapper (Apache-2.0)[^2]
+[^2]:See THIRD_PARTY_NOTICES.md  
 
 ### Support me! 🥛🍞
 
