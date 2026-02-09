@@ -1,0 +1,18 @@
+<class name="AideDeCam" inherits="Object">
+	<brief_description>
+		Main entry point for My Plugin.
+	</brief_description>
+
+	<description>
+		This singleton provides access to XYZ functionality.
+	</description>
+
+	<methods>
+		<method name="do_thing">
+			<return type="void" />
+			<description>
+				Does the thing.
+			</description>
+		</method>
+	</methods>
+</class>
