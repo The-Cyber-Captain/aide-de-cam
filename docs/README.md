@@ -70,6 +70,7 @@ Sure, why not? Enjoy. 😉
 - Install Aide-De-Cam
 
 [TODO]: Add screenshot
+DELIBERATE de-sync
 
 ### Licensing
 Code: The Unlicense  
