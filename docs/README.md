@@ -16,17 +16,17 @@
 
 Check the plugin is ready 
 ```
-	# Check the plugin is ready
-	if AideDeCam.is_plugin_available():
+# Check the plugin is ready
+if AideDeCam.is_plugin_available():
 	
-		# Get capabilities: saves camera_capabilities.json to user dir, returns JSON string.
-		var capabilities_json = AideDeCam.get_camera_capabilities()
+	# Get capabilities: saves camera_capabilities.json to user dir, returns JSON string.
+	var capabilities_json = AideDeCam.get_camera_capabilities()
 		
-		# As per above, but also saves to Documents/<project-name>/<dir>/camera_capabilities_{timestamp}.json
-		var capabilities_with_docs = AideDeCam.get_camera_capabilities_to_file("dir")
+	# As per above, but also saves to Documents/<project-name>/<dir>/camera_capabilities_{timestamp}.json
+	var capabilities_with_docs = AideDeCam.get_camera_capabilities_to_file("dir")
 		
-	else:
-		print("Plugin not available - are you running on Android?")
+else:
+	print("Plugin not available - are you running on Android?")
 ```
 
 ### Output:

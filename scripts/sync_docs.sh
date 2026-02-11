@@ -6,7 +6,7 @@ declare -A TOPICS=(
   ["docs/README.md"]="README.md addons/aide_de_cam/docs/README.md"
   ["docs/THIRD_PARTY_NOTICES.md"]="THIRD_PARTY_NOTICES.md addons/aide_de_cam/THIRD_PARTY_NOTICES.md"
   ["LICENSE"]="addons/aide_de_cam/LICENSE"
-  #["docs/CONTRIBUTING.md"]="CONTRIBUTING.md addons/aide_de_cam/docs/CONTRIBUTING.md"
+  ["docs/CONTRIBUTING.md"]="CONTRIBUTING.md addons/aide_de_cam/docs/CONTRIBUTING.md"
   #["docs/CHANGELOG.md"]="CHANGELOG.md addons/aide_de_cam/docs/CHANGELOG.md"
 )
 
