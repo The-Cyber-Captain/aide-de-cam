@@ -9,26 +9,25 @@
 
 ## Compatibility
 - Built against: Godot 4.3
-- Tested with: Godot ~~4.3, 4.4,~~ 4.5, ~~4.6~~
+- Tested with: Godot 4.3, ~~4.4,~~ 4.5, ~~4.6~~
 - Should work with future Godot 4.x releases
 
 ### How to use:
 
-Get the plugin instance  
-
-    var aide = Engine.get_singleton("AideDeCam")
-
-Check if it loaded successfully, and call the method  
-
-    if aide:      
-        # Get capabilities: saves camera_capabilities.json to user dir, returns JSON string.
-        var capabilities_json = aide.getCameraCapabilities()
-        
-        # As per above, but also saves to Documents/<project-name>/<dir>/camera_capabilities_{timestamp}.json
-        var capabilities_with_docs = aide.getCameraCapabilitiesToFile("dir")
-        
-    else:
-        print("Plugin not found - are you running on Android?")
+Check the plugin is ready 
+```
+	# Check the plugin is ready
+	if AideDeCam.is_plugin_available():
+	
+		# Get capabilities: saves camera_capabilities.json to user dir, returns JSON string.
+		var capabilities_json = AideDeCam.get_camera_capabilities()
+		
+		# As per above, but also saves to Documents/<project-name>/<dir>/camera_capabilities_{timestamp}.json
+		var capabilities_with_docs = AideDeCam.get_camera_capabilities_to_file("dir")
+		
+	else:
+		print("Plugin not available - are you running on Android?")
+```
 
 ### Output:
 SDK Version:  
@@ -58,6 +57,12 @@ Detects multi-lens setups with sync type info. Well... it *Should*. Currently un
 [TODO]: Add screenshot
 
 - Profit?
+
+NOTE: Enabling the plugin adds an AideDeCam autoload into the scene. Don't panic; it's just a practical way of providing:
+- autocompletion
+- F1 help
+- an API
+.. for the behind-the-scenes singleton Object the JNI / Kotlin AAR has to provide.
   
 #### Building from source:
 
