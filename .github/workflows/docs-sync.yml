@@ -1,4 +1,4 @@
-name: README sync check
+name: DOCS sync check
 
 on:
   pull_request:
@@ -10,12 +10,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Sync README
-        run: ./scripts/sync_readme.sh
+      - name: Sync DOCS
+        run: ./scripts/sync_docs.sh
       - name: Fail if changes required
         run: |
           if ! git diff --quiet; then
-            echo "README copies are out of date. Run ./scripts/sync_readme.sh and commit the result."
+            echo "DOCS copies are out of date. Run ./scripts/sync_docs.sh and commit the result."
             git diff
             exit 1
           fi

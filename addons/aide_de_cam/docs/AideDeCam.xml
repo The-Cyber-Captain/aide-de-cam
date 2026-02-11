@@ -1,18 +1,47 @@
-<class name="AideDeCam" inherits="Object">
-	<brief_description>
-		Main entry point for My Plugin.
-	</brief_description>
+<?xml version="1.0" ?>
+<class xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="aidedecam" xsi:noNamespaceSchemaLocation="../class.xsd">
+  <brief_description>Camera capabilities scanner for Android devices.</brief_description>
+  <description>Provides detailed information about device cameras including supported
+formats, resolutions, hardware levels, and concurrent camera capabilities.</description>
+  <tutorials/>
+  <methods>
+    <method name="_ready">
+      <return type="void"/>
+      <description/>
+    </method>
+    <method name="is_plugin_available">
+      <return type="bool"/>
+      <description>Returns true if the Android plugin is available.</description>
+    </method>
+    <method name="get_camera_capabilities">
+      <return type="String"/>
+      <description>Returns camera capabilities as a JSON string, and writes a copy to:[br]
+- `user://camera_capabilities.json` [br]
 
-	<description>
-		This singleton provides access to XYZ functionality.
-	</description>
+Notes: [br]
+- Does not write to the Documents folder.</description>
+    </method>
+    <method name="get_camera_capabilities_to_file">
+      <return type="String"/>
+      <param index="0" name="documents_subdir" type="String"/>
+      <description>Returns camera capabilities as a JSON string, and writes copies to:[br]
+- `user://camera_capabilities.json` [br]
+- `Documents/&lt;app-name&gt;/&lt;documents_subdir&gt;/camera_capabilities_&lt;timestamp&gt;.json` [br]
 
-	<methods>
-		<method name="do_thing">
-			<return type="void" />
-			<description>
-				Does the thing.
-			</description>
-		</method>
-	</methods>
+Parameters:[br]
+- `documents_subdir`: Subdirectory under Documents.[br]
+Use ".", "/", or "" to write to the app root folder.
+
+Notes:[br]
+- Excessively long or malformed paths fall back to [method get_camera_capabilities].</description>
+    </method>
+  </methods>
+  <signals>
+    <signal name="capabilities_updated">
+      <description>Emitted when camera capabilities have been successfully gathered and saved.</description>
+    </signal>
+    <signal name="plugin_ready">
+      <description>Emitted when the plugin singleton becomes available.</description>
+    </signal>
+  </signals>
 </class>

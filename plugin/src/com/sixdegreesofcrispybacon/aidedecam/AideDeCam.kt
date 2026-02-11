@@ -41,7 +41,7 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
     }
 
     init {
-        android.util.Log.i("AideDeCam", "Plugin initialized!")
+        android.util.Log.i("AideDeCam", "AAR (plugin) initialized!")
     }
 
     override fun getPluginName() = "AideDeCam"
@@ -51,10 +51,10 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
         SignalInfo(SIGNAL_CAPABILITIES_WARNING, String::class.java)
     )
 
-    override fun getPluginMethods(): List<String> = listOf(
-    "getCameraCapabilities",
-    "getCameraCapabilitiesToFile"
-)
+    //override fun getPluginMethods(): List<String> = listOf(
+    //"getCameraCapabilities",
+    //"getCameraCapabilitiesToFile"
+	//)
 
 @UsedByGodot
 fun getCameraCapabilities(): String {

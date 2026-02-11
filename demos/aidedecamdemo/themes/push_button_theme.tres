@@ -1,0 +1,28 @@
+[gd_resource type="Theme" load_steps=3 format=3 uid="uid://bbg4rpfu1k53c"]
+
+[ext_resource type="StyleBox" uid="uid://bwwabbpw0e7yu" path="res://themes/button_normal.tres" id="1_h3spp"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_b6nnb"]
+content_margin_left = 15.0
+content_margin_top = 15.0
+content_margin_right = 15.0
+content_margin_bottom = 15.0
+border_width_left = 4
+border_width_top = 4
+border_width_right = 4
+border_width_bottom = 4
+border_color = Color(1, 1, 1, 1)
+border_blend = true
+corner_radius_top_left = 16
+corner_radius_top_right = 16
+corner_radius_bottom_right = 16
+corner_radius_bottom_left = 16
+
+[resource]
+default_font_size = 40
+Button/colors/font_hover_color = Color(1, 0.988235, 0, 1)
+Button/styles/disabled = null
+Button/styles/focus = null
+Button/styles/hover = ExtResource("1_h3spp")
+Button/styles/normal = ExtResource("1_h3spp")
+Button/styles/pressed = SubResource("StyleBoxFlat_b6nnb")
