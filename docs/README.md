@@ -70,6 +70,7 @@ Sure, why not? Enjoy. 😉
 - Install Aide-De-Cam
 
 [TODO]: Add screenshot
+ADDED DELIBERATE MISTAKE HERE
 
 
 ### Licensing
