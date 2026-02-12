@@ -20,15 +20,15 @@ Automatically parse GDScript comment documentation (`##`) and generate standard 
 python gdscript_to_xml.py <input.gd>
 ```
 
-The XML file will automatically be saved to `docs/<input-file-name>.xml`. The `docs/` directory will be created if it doesn't exist, and any existing file will be overwritten.
+The XML file will automatically be saved to `doc_classes/<input-file-name>.xml`. The `doc_classes/` directory will be created if it doesn't exist, and any existing file will be overwritten.
 
 ### Examples
 
 ```bash
-# Generate docs/aidedecam.xml from aidedecam.gd
+# Generate doc_classes/aidedecam.xml from aidedecam.gd
 python gdscript_to_xml.py aidedecam.gd
 
-# Generate docs/my_script.xml from path/to/my_script.gd
+# Generate doc_classes/my_script.xml from path/to/my_script.gd
 python gdscript_to_xml.py path/to/my_script.gd
 ```
 
@@ -41,7 +41,7 @@ from pathlib import Path
 # Convert and save to custom location
 xml_content = convert_gdscript_to_xml('aidedecam.gd', 'custom/path/output.xml')
 
-# Or let it auto-save to docs/ directory
+# Or let it auto-save to doc_classes/ directory
 from gdscript_to_xml import GDScriptParser, GodotXMLGenerator
 
 parser = GDScriptParser('aidedecam.gd')
@@ -50,8 +50,8 @@ generator = GodotXMLGenerator(parsed_data)
 xml_content = generator.generate()
 
 # Save manually
-Path('docs').mkdir(exist_ok=True)
-Path('docs/aidedecam.xml').write_text(xml_content)
+Path('doc_classes').mkdir(exist_ok=True)
+Path('doc_classes/aidedecam.xml').write_text(xml_content)
 ```
 
 ## Documentation Format
@@ -157,4 +157,4 @@ The script generates XML files compatible with Godot's documentation system:
 
 Place the generated XML files in your Godot project's documentation directory. Godot will automatically use them to populate the built-in help system.
 
-Typical location: `res://docs/` or alongside your scripts.
+Typical location: `res://doc_classes/` or alongside your scripts.

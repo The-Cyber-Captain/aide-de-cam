@@ -23,6 +23,9 @@ import java.util.*
 class AideDeCam(godot: Godot) : GodotPlugin(godot) {
 
     companion object {
+        private const val PLUGIN_NAME = "AideDeCam"
+        private const val SCHEMA_VER = 1
+
         private const val MIN_SDK_VERSION = 21 // Camera2 API minimum
         private const val CONCURRENT_CAMERA_SDK = 30 // Android 11
 
@@ -40,11 +43,16 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
         private const val SIGNAL_CAPABILITIES_WARNING = "capabilities_warning"
     }
 
+    private data class CapMeta(
+        val godotVersion: String?,
+        val generatorVersion: String?
+    )
+
     init {
         android.util.Log.i("AideDeCam", "AAR (plugin) initialized!")
     }
 
-    override fun getPluginName() = "AideDeCam"
+    override fun getPluginName() = PLUGIN_NAME
 
     override fun getPluginSignals(): Set<SignalInfo> = setOf(
         SignalInfo(SIGNAL_CAPABILITIES_UPDATED),
@@ -54,63 +62,81 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
     //override fun getPluginMethods(): List<String> = listOf(
     //"getCameraCapabilities",
     //"getCameraCapabilitiesToFile"
-	//)
+    //)
 
-@UsedByGodot
-fun getCameraCapabilities(): String {
-    // True 0-arg entry point for GDScript dot-calls.
-    // Does NOT write a duplicate into Documents.
-    return getCameraCapabilitiesInternal(null)
-}
-
-@UsedByGodot
-fun getCameraCapabilitiesToFile(documentsSubdir: String): String {
-    // Writes a duplicate JSON file under:
-    //   Documents/<app-name>/(documentsSubdir)/
-    // Passing "." or "" means: Documents/<app-name>/
-    return getCameraCapabilitiesInternal(documentsSubdir)
-}
-
-private fun getCameraCapabilitiesInternal(documentsSubdirOrNull: String?): String {
-    val sdkVersion = Build.VERSION.SDK_INT
-
-    // Check SDK version first
-    if (sdkVersion < MIN_SDK_VERSION) {
-        return createErrorJson(
-            "SDK version too low. Camera2 API requires SDK $MIN_SDK_VERSION or higher. Current SDK: $sdkVersion"
-        )
+    @UsedByGodot
+    fun getCameraCapabilities(): String {
+        // True 0-arg entry point for GDScript dot-calls.
+        // Does NOT write a duplicate into Documents.
+        return getCameraCapabilitiesInternal(null, null)
     }
 
-    val hasCameraPermission = checkCameraPermission()
+    @UsedByGodot
+    fun getCameraCapabilitiesToFile(documentsSubdir: String): String {
+        // Writes a duplicate JSON file under:
+        //   Documents/<app-name>/(documentsSubdir)/
+        // Passing ".", "/", or "" means: Documents/<app-name>/
+        return getCameraCapabilitiesInternal(documentsSubdir, null)
+    }
 
-    val cameraManager = activity?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
-        ?: return createErrorJson("Unable to access Camera Manager", sdkVersion)
+    @UsedByGodot
+    fun getCameraCapabilitiesWithMeta(godotVersion: String, generatorVersion: String): String {
+        // Call this from an Autoload to include engine/plugin bundle metadata in the JSON.
+        return getCameraCapabilitiesInternal(null, CapMeta(godotVersion, generatorVersion))
+    }
 
-    return try {
-        val capabilitiesJson = buildCapabilitiesJson(cameraManager, sdkVersion, hasCameraPermission)
+    @UsedByGodot
+    fun getCameraCapabilitiesToFileWithMeta(documentsSubdir: String, godotVersion: String, generatorVersion: String): String {
+        // Same as getCameraCapabilitiesToFile(), but also includes meta fields in the JSON.
+        return getCameraCapabilitiesInternal(documentsSubdir, CapMeta(godotVersion, generatorVersion))
+    }
 
-        // Always save to user dir (app-scoped external files)
-        saveToUserDir(capabilitiesJson)
+    private fun getCameraCapabilitiesInternal(documentsSubdirOrNull: String?, meta: CapMeta?): String {
+        val sdkVersion = Build.VERSION.SDK_INT
 
-        // Optionally write a duplicate to Documents/<app-name>/(documentsSubdir)/
-        // If documentsSubdir is abusive (too long / too many segments), fall back to the 0-arg behavior.
-        val validatedDocumentsSubdir = documentsSubdirOrNull?.let { validateDocumentsSubdirOrNull(it) }
-        if (validatedDocumentsSubdir != null) {
-            try {
-                saveToDocuments(capabilitiesJson, validatedDocumentsSubdir)
-            } catch (e: Exception) {
-                emitCapabilitiesWarning("Couldn't write camera capabilities to Documents (skipping). Reason: ${e.javaClass.simpleName}: ${e.message}")
-            }
+        // Check SDK version first
+        if (sdkVersion < MIN_SDK_VERSION) {
+            return createErrorJson(
+                "SDK version too low. Camera2 API requires SDK $MIN_SDK_VERSION or higher. Current SDK: $sdkVersion",
+                sdkVersion,
+                meta
+            )
         }
 
-        // Signal after we have successfully written the primary app-scoped file
-        emitSignal(SIGNAL_CAPABILITIES_UPDATED)
+        val hasCameraPermission = checkCameraPermission()
 
-        capabilitiesJson
-    } catch (e: Exception) {
-        createErrorJson("Error gathering camera capabilities: ${e.message}", sdkVersion)
+        val cameraManager = activity?.getSystemService(Context.CAMERA_SERVICE) as? CameraManager
+            ?: return createErrorJson("Unable to access Camera Manager", sdkVersion, meta)
+
+        return try {
+            val capabilitiesJson = buildCapabilitiesJson(cameraManager, sdkVersion, hasCameraPermission, meta)
+
+            // Always save to user dir (Godot user:// equivalent on Android: Context.filesDir)
+            // This is the canonical location read by GDScript via user://camera_capabilities.json
+            saveToUserDir(capabilitiesJson)
+
+            // Optionally write a duplicate to Documents/<app-name>/(documentsSubdir)/
+            // If documentsSubdir is abusive (too long / too many segments), fall back to the 0-arg behavior.
+            val validatedDocumentsSubdir = documentsSubdirOrNull?.let { validateDocumentsSubdirOrNull(it) }
+            if (validatedDocumentsSubdir != null) {
+                try {
+                    saveToDocuments(capabilitiesJson, validatedDocumentsSubdir)
+                } catch (e: Exception) {
+                    emitCapabilitiesWarning(
+                        "Couldn't write camera capabilities to Documents (skipping). Reason: ${e.javaClass.simpleName}: ${e.message}"
+                    )
+                }
+            }
+
+
+            // Signal after we have successfully written the primary app-scoped file
+            emitSignal(SIGNAL_CAPABILITIES_UPDATED)
+
+            capabilitiesJson
+        } catch (e: Exception) {
+            createErrorJson("Error gathering camera capabilities: ${e.message}", sdkVersion, meta)
+        }
     }
-}
 
     private fun emitCapabilitiesWarning(message: String) {
         // Emit to Godot (editor Output panel) when running from the editor, and also logcat.
@@ -122,17 +148,27 @@ private fun getCameraCapabilitiesInternal(documentsSubdirOrNull: String?): Strin
         godotWarn(message)
     }
 
-    private fun buildCapabilitiesJson(cameraManager: CameraManager, sdkVersion: Int, hasCameraPermission: Boolean): String {
+    private fun buildCapabilitiesJson(cameraManager: CameraManager, sdkVersion: Int, hasCameraPermission: Boolean, meta: CapMeta?): String {
         val rootObject = JSONObject()
         val camerasArray = JSONArray()
         val warningsArray = JSONArray()
+
+        // Plugin info
+        rootObject.put("schema_version", SCHEMA_VER)
+        rootObject.put("generator", PLUGIN_NAME)
+
+        // Optional meta injected by GDScript/autoload (diagnostic only)
+        if (meta != null) {
+		    if (!meta.generatorVersion.isNullOrBlank()) rootObject.put("generator_version", meta.generatorVersion)
+            if (!meta.godotVersion.isNullOrBlank()) rootObject.put("godot_version", meta.godotVersion)
+        }
 
         // System info
         rootObject.put("sdk_version", sdkVersion)
         rootObject.put("device_model", Build.MODEL)
         rootObject.put("device_manufacturer", Build.MANUFACTURER)
         rootObject.put("android_version", Build.VERSION.RELEASE)
-        rootObject.put("timestamp", System.currentTimeMillis())
+        rootObject.put("timestamp_ms", System.currentTimeMillis())
 
         // Camera permission context
         rootObject.put("camera_permission_granted", hasCameraPermission)
@@ -140,7 +176,6 @@ private fun getCameraCapabilitiesInternal(documentsSubdirOrNull: String?): Strin
             // On API < 29, capability visibility without CAMERA permission is device/OEM dependent.
             rootObject.put("camera_permission_note", "On Android API < 29, some camera characteristics may be unavailable unless CAMERA permission is granted.")
         }
-
 
         // Concurrent camera support (Android 11+)
         if (sdkVersion >= CONCURRENT_CAMERA_SDK) {
@@ -153,7 +188,6 @@ private fun getCameraCapabilitiesInternal(documentsSubdirOrNull: String?): Strin
         for (cameraId in cameraManager.cameraIdList) {
             val cameraObject = JSONObject()
             val cameraWarnings = mutableListOf<String>()
-
 
             val characteristics = try {
                 cameraManager.getCameraCharacteristics(cameraId)
@@ -178,440 +212,247 @@ private fun getCameraCapabilitiesInternal(documentsSubdirOrNull: String?): Strin
 
             val permissionMsg = "Requires Camera permissions; grant them"
 
+            // Camera ID
             cameraObject.put("camera_id", cameraId)
-            cameraObject.put("facing", getFacing(characteristics))
-            cameraObject.put("hardware_level", getHardwareLevel(characteristics))
-            
-            // Sensor info with null checks
+
+            // Lens facing
+            val lensFacingKey = CameraCharacteristics.LENS_FACING
+            if (isPermissionBlocked(lensFacingKey)) {
+                cameraObject.put("facing", permissionMsg)
+            } else {
+                val facing = characteristics.get(lensFacingKey)
+                cameraObject.put("facing", when (facing) {
+                    CameraMetadata.LENS_FACING_FRONT -> "front"
+                    CameraMetadata.LENS_FACING_BACK -> "back"
+                    CameraMetadata.LENS_FACING_EXTERNAL -> "external"
+                    else -> "unknown"
+                })
+            }
+
+            // Hardware level
+            val hwLevelKey = CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL
+            if (isPermissionBlocked(hwLevelKey)) {
+                cameraObject.put("hardware_level", permissionMsg)
+            } else {
+                val hwLevel = characteristics.get(hwLevelKey)
+                cameraObject.put("hardware_level", when (hwLevel) {
+                    CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY -> "legacy"
+                    CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED -> "limited"
+                    CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_FULL -> "full"
+                    CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_3 -> "level_3"
+                    CameraMetadata.INFO_SUPPORTED_HARDWARE_LEVEL_EXTERNAL -> "external"
+                    else -> "unknown"
+                })
+            }
+
+            // Logical multi camera (API 28+ key exists but safe to query generally)
+            val logicalKey = CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES
+            val capabilities = characteristics.get(logicalKey)
+            val isLogical = capabilities?.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA) == true
+            cameraObject.put("is_logical_multi_camera", isLogical)
+
+            // Sensor block
             val sensorObject = JSONObject()
             var hasSensorData = false
-            
-            if (isPermissionBlocked(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)) {
+
+            val paWidthKey = CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE
+            if (isPermissionBlocked(paWidthKey)) {
                 sensorObject.put("pixel_array_width", permissionMsg)
                 sensorObject.put("pixel_array_height", permissionMsg)
                 hasSensorData = true
             } else {
-                characteristics.get(CameraCharacteristics.SENSOR_INFO_PIXEL_ARRAY_SIZE)?.let {
-                    if (it.width > 0 && it.height > 0) {
-                        sensorObject.put("pixel_array_width", it.width)
-                        sensorObject.put("pixel_array_height", it.height)
-                        hasSensorData = true
-                    } else {
-                        cameraWarnings.add("Invalid pixel array size: ${it.width}x${it.height}")
-                    }
-                } ?: cameraWarnings.add("Pixel array size not provided by vendor")
+                val pa = characteristics.get(paWidthKey)
+                if (pa != null) {
+                    sensorObject.put("pixel_array_width", pa.width)
+                    sensorObject.put("pixel_array_height", pa.height)
+                    hasSensorData = true
+                } else {
+                    cameraWarnings.add("Pixel array size not provided by vendor")
+                }
             }
 
-            if (isPermissionBlocked(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)) {
+            val physSizeKey = CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE
+            if (isPermissionBlocked(physSizeKey)) {
                 sensorObject.put("physical_width_mm", permissionMsg)
                 sensorObject.put("physical_height_mm", permissionMsg)
                 hasSensorData = true
             } else {
-                characteristics.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)?.let {
-                    if (it.width > 0 && it.height > 0) {
-                        sensorObject.put("physical_width_mm", it.width)
-                        sensorObject.put("physical_height_mm", it.height)
-                        hasSensorData = true
-                    } else {
-                        cameraWarnings.add("Invalid physical sensor size")
-                    }
-                } ?: cameraWarnings.add("Physical sensor size not provided by vendor")
+                val ps = characteristics.get(physSizeKey)
+                if (ps != null) {
+                    sensorObject.put("physical_width_mm", ps.width)
+                    sensorObject.put("physical_height_mm", ps.height)
+                    hasSensorData = true
+                } else {
+                    cameraWarnings.add("Physical sensor size not provided by vendor")
+                }
             }
 
-            if (isPermissionBlocked(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE)) {
+            val isoRangeKey = CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE
+            if (isPermissionBlocked(isoRangeKey)) {
                 sensorObject.put("iso_min", permissionMsg)
                 sensorObject.put("iso_max", permissionMsg)
                 hasSensorData = true
             } else {
-                characteristics.get(CameraCharacteristics.SENSOR_INFO_SENSITIVITY_RANGE)?.let {
-                    if (it.lower >= 0 && it.upper > it.lower) {
-                        sensorObject.put("iso_min", it.lower)
-                        sensorObject.put("iso_max", it.upper)
-                        hasSensorData = true
-                    } else {
-                        cameraWarnings.add("Invalid ISO sensitivity range")
-                    }
-                } ?: cameraWarnings.add("ISO sensitivity range not provided by vendor")
+                val isoRange = characteristics.get(isoRangeKey)
+                if (isoRange != null) {
+                    sensorObject.put("iso_min", isoRange.lower)
+                    sensorObject.put("iso_max", isoRange.upper)
+                    hasSensorData = true
+                } else {
+                    cameraWarnings.add("ISO sensitivity range not provided by vendor")
+                }
             }
 
             if (hasSensorData) {
                 cameraObject.put("sensor", sensorObject)
             }
 
-            // Available focal lengths
-            if (isPermissionBlocked(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)) {
-                cameraObject.put("focal_lengths", permissionMsg)
+            // Focal lengths
+            val focalKey = CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS
+            if (isPermissionBlocked(focalKey)) {
+                cameraObject.put("focal_lengths", JSONArray().put(permissionMsg))
             } else {
-                characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_FOCAL_LENGTHS)?.let {
-                    if (it.isNotEmpty() && it.all { fl -> fl > 0 }) {
-                        val focalLengthsArray = JSONArray()
-                        it.forEach { fl -> focalLengthsArray.put(fl) }
-                        cameraObject.put("focal_lengths", focalLengthsArray)
-                    } else {
-                        cameraWarnings.add("Invalid focal length data")
-                    }
-                } ?: cameraWarnings.add("Focal lengths not provided by vendor")
+                val focalLengths = characteristics.get(focalKey)
+                if (focalLengths != null) {
+                    val flArr = JSONArray()
+                    for (f in focalLengths) flArr.put(f)
+                    cameraObject.put("focal_lengths", flArr)
+                }
             }
 
             // Apertures
-            if (isPermissionBlocked(CameraCharacteristics.LENS_INFO_AVAILABLE_APERTURES)) {
-                cameraObject.put("apertures", permissionMsg)
+            val apertureKey = CameraCharacteristics.LENS_INFO_AVAILABLE_APERTURES
+            if (isPermissionBlocked(apertureKey)) {
+                cameraObject.put("apertures", JSONArray().put(permissionMsg))
             } else {
-                characteristics.get(CameraCharacteristics.LENS_INFO_AVAILABLE_APERTURES)?.let {
-                    if (it.isNotEmpty() && it.all { ap -> ap > 0 }) {
-                        val aperturesArray = JSONArray()
-                        it.forEach { ap -> aperturesArray.put(ap) }
-                        cameraObject.put("apertures", aperturesArray)
-                    } else {
-                        cameraWarnings.add("Invalid aperture data")
-                    }
+                val apertures = characteristics.get(apertureKey)
+                if (apertures != null) {
+                    val apArr = JSONArray()
+                    for (a in apertures) apArr.put(a)
+                    cameraObject.put("apertures", apArr)
                 }
             }
 
-
-            // Supported output formats
-            val streamConfigMap = if (isPermissionBlocked(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)) {
-                null
-            } else {
-                characteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
-            }
-            if (isPermissionBlocked(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)) {
-                cameraObject.put("output_formats", permissionMsg)
-            } else if (streamConfigMap != null) {
-                val formatsArray = JSONArray()
-                var hasValidFormats = false
-                
-                streamConfigMap.outputFormats.forEach { format ->
-                    val sizes = streamConfigMap.getOutputSizes(format)
-                    if (sizes != null && sizes.isNotEmpty()) {
-                        val formatObject = JSONObject()
-                        formatObject.put("format", format)
-                        formatObject.put("format_name", getFormatName(format))
-                        
-                        val sizesArray = JSONArray()
-                        sizes.forEach { size ->
-                            if (size.width > 0 && size.height > 0) {
-                                sizesArray.put("${size.width}x${size.height}")
-                            }
-                        }
-                        
-                        if (sizesArray.length() > 0) {
-                            formatObject.put("sizes", sizesArray)
-                            formatsArray.put(formatObject)
-                            hasValidFormats = true
-                        }
-                    }
-                }
-                
-                if (hasValidFormats) {
-                    cameraObject.put("output_formats", formatsArray)
-                } else {
-                    cameraWarnings.add("No valid output formats available")
-                }
-            } else {
-                cameraWarnings.add("Stream configuration map not provided by vendor")
-            }
-
-            // FPS ranges
-            if (isPermissionBlocked(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)) {
-                cameraObject.put("fps_ranges", permissionMsg)
-            } else characteristics.get(CameraCharacteristics.CONTROL_AE_AVAILABLE_TARGET_FPS_RANGES)?.let {
-                if (it.isNotEmpty()) {
-                    val fpsArray = JSONArray()
-                    val validRanges = it.filter { range -> 
-                        range.lower > 0 && range.upper >= range.lower && range.upper <= 240
-                    }
-                    
-                    if (validRanges.isNotEmpty()) {
-                        validRanges.forEach { range ->
-                            fpsArray.put("${range.lower}-${range.upper}")
-                        }
-                        cameraObject.put("fps_ranges", fpsArray)
-                    } else {
-                        cameraWarnings.add("All FPS ranges have invalid values")
-                    }
-                } else {
-                    cameraWarnings.add("Empty FPS ranges array")
-                }
-            } ?: cameraWarnings.add("FPS ranges not provided by vendor")
-
-
-			// Logical multi-camera support (Android 9+)
-			if (sdkVersion >= 28) {
-				characteristics.get(CameraCharacteristics.LOGICAL_MULTI_CAMERA_SENSOR_SYNC_TYPE)?.let {
-					cameraObject.put("multi_camera_sync_type", getMultiCameraSyncType(it))
-				}
-				
-				characteristics.get(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES)?.let { caps ->
-					cameraObject.put("is_logical_multi_camera", 
-						caps.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA))
-					
-					if (caps.contains(CameraCharacteristics.REQUEST_AVAILABLE_CAPABILITIES_LOGICAL_MULTI_CAMERA)) {
-						// Use reflection to access LOGICAL_MULTI_CAMERA_PHYSICAL_IDS (API 28+)
-						try {
-							val physicalIdsKey = CameraCharacteristics::class.java
-								.getDeclaredField("LOGICAL_MULTI_CAMERA_PHYSICAL_IDS")
-								.get(null) as CameraCharacteristics.Key<*>
-							
-							@Suppress("UNCHECKED_CAST")
-							val physicalIds = characteristics.get(physicalIdsKey as CameraCharacteristics.Key<Set<String>>)
-							
-							physicalIds?.let { ids ->
-								val physicalIdsArray = JSONArray()
-								for (id in ids) {
-									physicalIdsArray.put(id)
-								}
-								cameraObject.put("physical_camera_ids", physicalIdsArray)
-							}
-						} catch (e: Exception) {
-							// Field not available, skip physical IDs
-							cameraWarnings.add("Logical multi-camera detected but physical IDs unavailable")
-						}
-					}
-				}
-			}
-
-            // Add warnings if any
+            // Per-camera warnings
             if (cameraWarnings.isNotEmpty()) {
-                val cameraWarningsArray = JSONArray()
-                cameraWarnings.forEach { warning ->
-                    cameraWarningsArray.put(warning)
-                    warningsArray.put("Camera $cameraId: $warning")
-                }
-                cameraObject.put("warnings", cameraWarningsArray)
+                val wArr = JSONArray()
+                for (w in cameraWarnings) wArr.put(w)
+                cameraObject.put("warnings", wArr)
+                for (w in cameraWarnings) warningsArray.put("Camera $cameraId: $w")
             }
 
             camerasArray.put(cameraObject)
         }
 
         rootObject.put("cameras", camerasArray)
-        
-        if (warningsArray.length() > 0) {
-            rootObject.put("warnings", warningsArray)
-        }
+        rootObject.put("warnings", warningsArray)
 
         return rootObject.toString(2)
     }
 
     private fun addConcurrentCameraInfo(cameraManager: CameraManager, rootObject: JSONObject) {
         try {
-            if (Build.VERSION.SDK_INT >= 30) {
-                val concurrentObject = JSONObject()
-                val concurrentCameraSets = cameraManager.concurrentCameraIds
-                
-                concurrentObject.put("supported", concurrentCameraSets.isNotEmpty())
-                
-                if (concurrentCameraSets.isNotEmpty()) {
-                    val setsArray = JSONArray()
-                    concurrentCameraSets.forEach { cameraIdSet ->
-                        val setArray = JSONArray()
-                        cameraIdSet.forEach { cameraId ->
-                            setArray.put(cameraId)
-                        }
-                        setsArray.put(setArray)
-                    }
-                    concurrentObject.put("camera_id_combinations", setsArray)
-                    concurrentObject.put("max_concurrent_cameras", 
-                        concurrentCameraSets.maxOfOrNull { it.size } ?: 0)
-                } else {
-                    concurrentObject.put("camera_id_combinations", JSONArray())
-                    concurrentObject.put("max_concurrent_cameras", 1)
-                }
-                
-                rootObject.put("concurrent_camera_support", concurrentObject)
+            val combos = cameraManager.concurrentCameraIds
+            val ccObj = JSONObject()
+            ccObj.put("supported", combos.isNotEmpty())
+            ccObj.put("max_concurrent_cameras", combos.maxOfOrNull { it.size } ?: 0)
+
+            val combosArr = JSONArray()
+            for (set in combos) {
+                val setArr = JSONArray()
+                for (id in set) setArr.put(id)
+                combosArr.put(setArr)
             }
+            ccObj.put("camera_id_combinations", combosArr)
+
+            rootObject.put("concurrent_camera_support", ccObj)
+            rootObject.put("concurrent_camera_min_sdk", CONCURRENT_CAMERA_SDK)
         } catch (e: Exception) {
-            val concurrentObject = JSONObject()
-            concurrentObject.put("supported", false)
-            concurrentObject.put("error", "Failed to query concurrent camera support: ${e.message}")
-            rootObject.put("concurrent_camera_support", concurrentObject)
-        }
-    }
-
-	private fun getFormatName(format: Int): String {
-    // Using actual Android ImageFormat constants
-    return when (format) {
-        1 -> "RGBA_8888"
-        2 -> "RGBX_8888"
-        3 -> "RGB_888"
-        4 -> "RGB_565"
-        16 -> "NV16"
-        17 -> "NV21"
-        20 -> "YUY2"
-        32 -> "YV12"
-        34 -> "PRIVATE"
-        35 -> "YUV_420_888"
-        37 -> "RAW10"
-        39 -> "YUV_444_888"
-        40 -> "FLEX_RGB_888"
-        41 -> "FLEX_RGBA_8888"
-        44 -> "DEPTH16"
-        45 -> "RAW12"
-        46 -> "RAW_PRIVATE"
-        68 -> "DEPTH_POINT_CLOUD"
-        256 -> "JPEG"
-        257 -> "DEPTH_JPEG"
-        4098 -> "HEIC"
-        else -> "UNKNOWN_$format"
-    }
-}
-
-    private fun getMultiCameraSyncType(syncType: Int): String {
-        return when (syncType) {
-            CameraMetadata.LOGICAL_MULTI_CAMERA_SENSOR_SYNC_TYPE_APPROXIMATE -> "approximate"
-            CameraMetadata.LOGICAL_MULTI_CAMERA_SENSOR_SYNC_TYPE_CALIBRATED -> "calibrated"
-            else -> "unknown"
-        }
-    }
-
-    private fun getFacing(characteristics: CameraCharacteristics): String {
-        return when (characteristics.get(CameraCharacteristics.LENS_FACING)) {
-            CameraCharacteristics.LENS_FACING_FRONT -> "front"
-            CameraCharacteristics.LENS_FACING_BACK -> "back"
-            CameraCharacteristics.LENS_FACING_EXTERNAL -> "external"
-            else -> "unknown"
-        }
-    }
-
-    private fun getHardwareLevel(characteristics: CameraCharacteristics): String {
-        return when (characteristics.get(CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL)) {
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LEGACY -> "legacy"
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_LIMITED -> "limited"
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_FULL -> "full"
-            CameraCharacteristics.INFO_SUPPORTED_HARDWARE_LEVEL_3 -> "level_3"
-            else -> "unknown"
-        }
-    }
-
-    private fun saveToUserDir(json: String) {
-        val ctx = activity ?: throw IllegalStateException("Activity unavailable; cannot write capabilities file")
-        val userDir = ctx.filesDir // this equates to godot's user:// dir
-            ?: throw java.io.IOException("FilesDir unavailable; cannot write capabilities file")
-        val file = File(userDir, CAPABILITIES_USER_FILENAME)
-        file.writeText(json)
-    }
-
-    private fun getSafeAppFolderName(): String {
-    val ctx = activity ?: return "GodotApp"
-    val pm = ctx.packageManager
-    val label = try {
-        ctx.applicationInfo.loadLabel(pm).toString()
-    } catch (_: Exception) {
-        null
-    }
-	val raw = (label?.takeIf { it.isNotBlank() } ?: ctx.packageName).trim()
-
-    // Keep it filesystem-friendly and deterministic.
-    val sanitized = raw.map { ch ->
-        when {
-            ch.isLetterOrDigit() -> ch
-            ch == ' ' || ch == '.' || ch == '_' || ch == '-' -> ch
-            else -> '_'
-        }
-    }.joinToString("").trim()
-
-    return if (sanitized.isNotEmpty()) sanitized else "GodotApp"
-}
-
-private fun validateDocumentsSubdirOrNull(raw: String): String? {
-    val trimmed = raw.trim()
-
-    if (trimmed.length > MAX_DOCUMENTS_SUBDIR_LENGTH) {
-        emitCapabilitiesWarning(
-            "documentsSubdir is too long (len=${trimmed.length}, max=$MAX_DOCUMENTS_SUBDIR_LENGTH). Skipping Documents copy."
-        )
-        return null
-    }
-
-    // Normalize separators early; we only count segments on the capped-length string.
-    val normalized = trimmed.replace('\\', '/')
-    val segments = normalized.split('/')
-        .map { it.trim() }
-        .filter { it.isNotEmpty() && it != "." && it != ".." }
-
-    if (segments.size > MAX_DOCUMENTS_SUBDIR_SEGMENTS) {
-        emitCapabilitiesWarning(
-            "documentsSubdir has too many path segments (${segments.size}, max=$MAX_DOCUMENTS_SUBDIR_SEGMENTS). Skipping Documents copy."
-        )
-        return null
-    }
-
-    // Keep original (sanitization happens later); allow "" / "." to mean app root.
-    return trimmed
-}
-
-private fun sanitizeDocumentsSubdir(raw: String): String {
-    // Normalize separators, strip leading/trailing, drop '.' and '..' segments.
-    val normalized = raw.replace('\\', '/').trim()
-    val parts = normalized.split('/')
-        .map { it.trim() }
-        .filter { it.isNotEmpty() && it != "." && it != ".." }
-
-    return parts.joinToString(File.separator)
-}
-
-private fun saveToDocuments(json: String, documentsSubdir: String) {
-    val documentsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-    if (!documentsRoot.exists()) {
-        documentsRoot.mkdirs()
-    }
-
-    val appDir = File(documentsRoot, getSafeAppFolderName())
-    if (!appDir.exists()) {
-        appDir.mkdirs()
-    }
-
-    val sanitizedSubdir = sanitizeDocumentsSubdir(documentsSubdir)
-    val targetDir = if (sanitizedSubdir.isEmpty()) appDir else File(appDir, sanitizedSubdir)
-    if (!targetDir.exists()) {
-        targetDir.mkdirs()
-    }
-
-    val timestamp = SimpleDateFormat(CAPABILITIES_TIMESTAMP_FORMAT, Locale.US).format(Date())
-    val filename = "${CAPABILITIES_BASENAME}_$timestamp.json"
-    val file = File(targetDir, filename)
-    file.writeText(json)
-}
-
-
-
-    private fun godotWarn(message: String) {
-        // Best-effort: print a warning into Godot's output, and also logcat.
-        try {
-            val godotLibClass = Class.forName("org.godotengine.godot.GodotLib")
-            // Godot 4 Android templates commonly expose:
-            //   printWarning(String message, String function, String file, int line)
-            // but we try a couple of signatures to be safe.
-            val methods = godotLibClass.methods
-            val candidate = methods.firstOrNull { m ->
-                m.name == "printWarning" && m.parameterTypes.isNotEmpty()
-            }
-            if (candidate != null) {
-                val params = candidate.parameterTypes
-                when (params.size) {
-                    1 -> candidate.invoke(null, message)
-                    4 -> candidate.invoke(null, message, "AideDeCam", "AideDeCam.kt", 0)
-                    else -> candidate.invoke(null, message)
-                }
-            } else {
-                Log.w("AideDeCam", message)
-            }
-        } catch (_: Throwable) {
-            Log.w("AideDeCam", message)
+            val ccObj = JSONObject()
+            ccObj.put("supported", false)
+            ccObj.put("error", "${e.javaClass.simpleName}: ${e.message}")
+            rootObject.put("concurrent_camera_support", ccObj)
+            rootObject.put("concurrent_camera_min_sdk", CONCURRENT_CAMERA_SDK)
         }
     }
 
     private fun checkCameraPermission(): Boolean {
-        return activity?.let {
-            ContextCompat.checkSelfPermission(it, Manifest.permission.CAMERA) == 
-                PackageManager.PERMISSION_GRANTED
-        } ?: false
+        val ctx = activity ?: return false
+        return ContextCompat.checkSelfPermission(ctx, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
     }
 
-    private fun createErrorJson(message: String, sdkVersion: Int? = null): String {
+	private fun saveToUserDir(jsonText: String) {
+		val ctx = activity ?: throw IllegalStateException("Activity unavailable; cannot write capabilities file")
+		val userDir = ctx.filesDir
+			?: throw java.io.IOException("FilesDir unavailable; cannot write capabilities file")
+		val outFile = File(userDir, CAPABILITIES_USER_FILENAME)
+		outFile.writeText(jsonText)
+	}
+
+
+    private fun validateDocumentsSubdirOrNull(documentsSubdir: String): String? {
+        val trimmed = documentsSubdir.trim()
+        if (trimmed.isEmpty() || trimmed == "." || trimmed == "/") return ""
+
+        if (trimmed.length > MAX_DOCUMENTS_SUBDIR_LENGTH) return null
+
+        val normalized = trimmed.replace('\\', '/').trim('/')
+        if (normalized.isEmpty()) return ""
+
+        val segs = normalized.split('/').filter { it.isNotEmpty() }
+        if (segs.size > MAX_DOCUMENTS_SUBDIR_SEGMENTS) return null
+
+        // Reject path traversal attempts
+        if (segs.any { it == "." || it == ".." }) return null
+
+        return normalized
+    }
+
+    private fun saveToDocuments(jsonText: String, documentsSubdir: String) {
+        val docsRoot = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
+
+        val ctx = activity ?: return
+        val appName = ctx.applicationInfo.loadLabel(ctx.packageManager).toString().ifBlank { ctx.packageName }
+
+        val baseDir = File(docsRoot, appName)
+
+        val targetDir = if (documentsSubdir.isBlank()) {
+            baseDir
+        } else {
+            File(baseDir, documentsSubdir)
+        }
+
+        if (!targetDir.exists()) {
+            targetDir.mkdirs()
+        }
+
+        val timestamp = SimpleDateFormat(CAPABILITIES_TIMESTAMP_FORMAT, Locale.US).format(Date())
+        val outName = "${CAPABILITIES_BASENAME}_${timestamp}.json"
+        val outFile = File(targetDir, outName)
+
+        outFile.writeText(jsonText)
+    }
+
+    private fun godotWarn(message: String) {
+        try {
+            Log.w(PLUGIN_NAME, message)
+        } catch (_: Throwable) {
+            // ignore
+        }
+    }
+
+    private fun createErrorJson(message: String, sdkVersion: Int? = null, meta: CapMeta? = null): String {
         val errorObject = JSONObject()
+        // Plugin info
+        errorObject.put("schema_version", SCHEMA_VER)
+        errorObject.put("generator", PLUGIN_NAME)
+        if (meta != null) {
+            if (!meta.godotVersion.isNullOrBlank()) errorObject.put("godot_version", meta.godotVersion)
+            if (!meta.generatorVersion.isNullOrBlank()) errorObject.put("generator_version", meta.generatorVersion)
+        }
+
         errorObject.put("error", message)
-        errorObject.put("timestamp", System.currentTimeMillis())
+        errorObject.put("timestamp_ms", System.currentTimeMillis())
         errorObject.put("sdk_version", sdkVersion ?: Build.VERSION.SDK_INT)
         errorObject.put("device_model", Build.MODEL)
         errorObject.put("device_manufacturer", Build.MANUFACTURER)

@@ -423,7 +423,7 @@ if __name__ == '__main__':
     input_file = sys.argv[1]
     
     # Create docs directory if it doesn't exist
-    docs_dir = Path(input_file).parent / 'docs'
+    docs_dir = Path(input_file).parent / 'doc_classes'
     docs_dir.mkdir(exist_ok=True)
     
     # Always save to docs/<input-file-name>.xml

@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3 uid="uid://byfiroliiyvqy"]
+[gd_scene load_steps=13 format=3 uid="uid://byfiroliiyvqy"]
 
 [ext_resource type="Theme" uid="uid://dilir1ustsxj1" path="res://themes/panel_container_theme.tres" id="1_kdfef"]
 [ext_resource type="StyleBox" uid="uid://ck44vm33io7h3" path="res://themes/info_panel_style.tres" id="1_y35qy"]
@@ -29,6 +29,7 @@ func _watch_for_plugin():
 	if AideDeCam.is_plugin_available():
 		AideDeCam.capabilities_updated.connect(_display_capabilties_from_file)
 		status_string = \"Connected to singleton\"
+		%PathLabel.text = AideDeCam._get_addon_version()
 		return
 		
 	status_string = \"Aide-De-Cam plugin not detected\"	
@@ -71,7 +72,7 @@ func _display_capabilties_from_file():
 	status_string = \"Camera lines # %d\" % [return_dic.camera_lines.size()]
 	_populate_camera_panels(return_dic.camera_lines, existing_panels)
 
-	status_string = \"Info queried %s\" % [Time.get_datetime_string_from_unix_time(int(return_dic.timestamp / 1000.0), true)]
+	status_string = \"Info queried %s\" % [Time.get_datetime_string_from_unix_time(int(return_dic.timestamp_ms / 1000.0), true)]
 
 func _populate_camera_panels(cam_lines : Array, panels : Array[Node]):
 	for idx : int in range(0, cam_lines.size()):
@@ -104,14 +105,17 @@ func _create_and_add_grid_panel():
 	pan.owner = %GridContainer
 
 func _parse_capabilities_json() -> Dictionary:
+	%PathLabel.text = OS.get_user_data_dir()
 	var text := FileAccess.get_file_as_string(FILENAME)
 	if text.is_empty():
 		push_error(\"Empty file: %s\" % FILENAME)
+		%PathLabel.text = \"Empty file. %s\" % [FILENAME]
 		return {}
 
 	var parsed : Variant = JSON.parse_string(text)
 	if parsed == null or typeof(parsed) != TYPE_DICTIONARY:
 		push_error(\"Invalid JSON in: %s\" % FILENAME)
+		%PathLabel.text = \"Invalid JSON %s\" % [FILENAME]
 		return {}
 
 	var root: Dictionary = parsed
@@ -122,32 +126,62 @@ func _parse_capabilities_json() -> Dictionary:
 	var android_version := str(root.get(\"android_version\", \"unknown\"))
 	var line_device := \"%s %s (Android %s)\" % [manufacturer, model, android_version]
 
-	# 2) SDK, permissions, concurrency info
+
+	# 2) SDK, permissions, concurrency info (robust across SDK levels)
 	var sdk := int(root.get(\"sdk_version\", -1))
 	var perm := bool(root.get(\"camera_permission_granted\", false))
 
-	var cc: Dictionary = root.get(\"concurrent_camera_support\", {})
-	var cc_supported := bool(cc.get(\"supported\", false))
-	var max_cc := int(cc.get(\"max_concurrent_cameras\", 0))
-	var combos: Array = cc.get(\"camera_id_combinations\", [])
+	var cc_v: Variant = root.get(\"concurrent_camera_support\", null)
 
+	var cc_supported := false
+	var max_cc := 0
+	var combos: Array = []
+	var cc_note := \"\"  # extra diagnostic text to append
+
+	if cc_v == null:
+		cc_note = \" | concurrent=unknown\"
+	elif typeof(cc_v) == TYPE_DICTIONARY:
+		var cc: Dictionary = cc_v
+		cc_supported = bool(cc.get(\"supported\", false))
+		max_cc = int(cc.get(\"max_concurrent_cameras\", 0))
+		combos = cc.get(\"camera_id_combinations\", [])
+
+		# Optional: if your Kotlin emits error info inside this dict
+		var cc_err : Variant = cc.get(\"error\", \"\")
+		if cc_err != null and str(cc_err) != \"\":
+			cc_note = \" | concurrent_error=%s\" % str(cc_err)
+	elif typeof(cc_v) == TYPE_STRING:
+		# e.g. \"not_available_sdk_too_low\"
+		cc_note = \" | concurrent=%s\" % str(cc_v)
+	else:
+		cc_note = \" | concurrent=unexpected_type(%s)\" % str(typeof(cc_v))
+
+	#var combos_str := \"\"
+	#if cc_supported and combos.size() > 0:
+		## combos is an array of arrays of strings, e.g. [[\"0\",\"1\"],[\"0\",\"3\"]]
+		#var combo_parts: Array[String] = []
+		#for combo in combos:
+			#if typeof(combo) == TYPE_ARRAY:
+				#var ids: Array[String] = []
+				#for idv in combo:
+					#ids.append(str(idv))
+				#combo_parts.append(\"[\" + \",\".join(ids) + \"]\")
+		#if combo_parts.size() > 0:
+			#combos_str = \", combos=\" + \"; \".join(combo_parts)
+			
 	var combos_str := \"\"
 	if cc_supported:
-		# combos is an array of arrays of strings, e.g. [[\"0\",\"1\"],[\"0\",\"3\"]]
-		var combo_parts: Array[String] = []
-		for combo in combos:
-			if typeof(combo) == TYPE_ARRAY:
-				combo_parts.append(\"[\" + \",\".join(combo) + \"]\")
-		combos_str = \", combos=\" + \"; \".join(combo_parts)
-	else:
-		combos_str = \"\"
+		var joined := _safe_join_combo_arrays(combos)
+		if not joined.is_empty():
+			combos_str = \", combos=\" + joined
 
-	var line_system := \"SDK %d | camera_permission=%s | concurrent=%s (max=%d)%s\" % [
-		sdk, str(perm), str(cc_supported), max_cc, combos_str
+
+	var line_system := \"SDK %d | camera_permission=%s | concurrent=%s (max=%d)%s%s\" % [
+		sdk, str(perm), str(cc_supported), max_cc, combos_str, cc_note
 	]
 
 	# 3) Timestamp (of query)
-	var timestamp := int(root.get(\"timestamp\"))
+	var timestamp_ms := int(root.get(\"timestamp_ms\"))
 
 	# 4) One string per camera: include individual properties EXCEPT fps_ranges and output_formats
 	var camera_lines: Array[String] = []
@@ -190,12 +224,13 @@ func _parse_capabilities_json() -> Dictionary:
 			parts.append(\"iso=%s-%s\" % [str(iso_min), str(iso_max)])
 
 		if focal_lengths.size() > 0:
-			parts.append(\"focal_lengths=%s\" % [\", \".join(focal_lengths)])
+			parts.append(\"focal_lengths=%s\" % _safe_join_any(focal_lengths, \", \"))
+
 		if apertures.size() > 0:
-			parts.append(\"apertures=%s\" % [\", \".join(apertures)])
+			parts.append(\"apertures=%s\" % _safe_join_any(apertures, \", \"))
 
 		if warnings.size() > 0:
-			parts.append(\"warnings=%s\" % [\"; \".join(warnings)])
+			parts.append(\"warnings=%s\" % _safe_join_any(warnings, \"; \"))
 
 		camera_lines.append(\"Camera id=%s\\n\\n\" % cam_id + \" | \".join(parts))
 
@@ -203,8 +238,43 @@ func _parse_capabilities_json() -> Dictionary:
 		\"line_device\": line_device,
 		\"line_system\": line_system,
 		\"camera_lines\": camera_lines,
-		\"timestamp\": timestamp
+		\"timestamp_ms\": timestamp_ms
 	}
+
+
+func _safe_string(v: Variant) -> String:
+	if v == null:
+		return \"null\"
+	return str(v)
+
+
+func _safe_join_any(arr: Variant, sep: String = \", \") -> String:
+	if arr == null:
+		return \"\"
+	if typeof(arr) != TYPE_ARRAY:
+		return str(arr)
+
+	var out: Array[String] = []
+	for v in arr:
+		out.append(str(v))
+	return sep.join(out)
+
+
+func _safe_join_combo_arrays(arr: Variant) -> String:
+	# Expects array-of-arrays, but tolerates junk.
+	if arr == null or typeof(arr) != TYPE_ARRAY:
+		return \"\"
+
+	var combo_parts: Array[String] = []
+	for combo in arr:
+		if typeof(combo) != TYPE_ARRAY:
+			continue
+		var ids: Array[String] = []
+		for idv in combo:
+			ids.append(str(idv))
+		combo_parts.append(\"[\" + \",\".join(ids) + \"]\")
+
+	return \"; \".join(combo_parts)
 
 
 func _process(_delta):
@@ -255,8 +325,12 @@ func _ready():
 		self.visible = true
 	else:
 		self.visible = false
-		
+
 	if \"android.permission.CAMERA\" in OS.get_granted_permissions():
+		# seems broken in old c.Lollipop - Oreo devices
+		# could be a 32bit thing. Returns [] always.
+		# definitely a not-my-problem / godot-broken thing
+		# Godot Android permissions are TRASH!
 		self.disabled = true
 		return
 		
@@ -291,9 +365,18 @@ func _on_button_pressed():
 		return
 
 	status_string = str(Engine.has_singleton(\"AideDeCam\"))
-	#AideDeCam.get_camera_capabilities_to_file(\"fail\".repeat(100))
-	AideDeCam.get_camera_capabilities()
+	AideDeCam.get_camera_capabilities_to_file(\"new_schema_check\")#.repeat(100))
+	#AideDeCam.get_camera_capabilities()
 	status_string = \"Capabilities requested\"
+"
+
+[sub_resource type="GDScript" id="GDScript_1rolc"]
+resource_name = "tmp_perms"
+script/source = "extends Label
+
+func _process(delta):
+	if Engine.get_frames_drawn() % 30 == 0:
+		self.text = \"frm: %d	perms: %s\" % [Engine.get_frames_drawn(), OS.get_granted_permissions()]
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8beu7"]
@@ -376,6 +459,10 @@ theme_override_font_sizes/font_size = 35
 text = "<Rig Name>"
 vertical_alignment = 1
 
+[node name="BoxContainer" type="BoxContainer" parent="MarginContainer/VBoxContainer/HeaderContainer"]
+custom_minimum_size = Vector2(100, 1.45519e-11)
+layout_mode = 2
+
 [node name="PermsButton" type="Button" parent="MarginContainer/VBoxContainer/HeaderContainer"]
 layout_mode = 2
 size_flags_horizontal = 10
@@ -384,6 +471,7 @@ focus_mode = 0
 theme = ExtResource("3_amoat")
 theme_override_colors/font_disabled_color = Color(0.299056, 0.299056, 0.299056, 1)
 theme_override_styles/disabled = SubResource("StyleBoxFlat_2fyya")
+theme_override_styles/hover = SubResource("StyleBoxFlat_exqk4")
 theme_override_styles/normal = SubResource("StyleBoxFlat_exqk4")
 text = "Permissions"
 script = SubResource("GDScript_2gdjq")
@@ -397,7 +485,7 @@ theme = ExtResource("3_amoat")
 text = "Query"
 script = SubResource("GDScript_xry8p")
 
-[node name="BoxContainer" type="BoxContainer" parent="MarginContainer/VBoxContainer/HeaderContainer"]
+[node name="BoxContainer2" type="BoxContainer" parent="MarginContainer/VBoxContainer/HeaderContainer"]
 custom_minimum_size = Vector2(100, 1.45519e-11)
 layout_mode = 2
 
@@ -433,6 +521,71 @@ size_flags_vertical = 3
 theme_override_constants/h_separation = 35
 theme_override_constants/v_separation = 20
 columns = 3
+
+[node name="tmpPath" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="StatusPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/tmpPath"]
+custom_minimum_size = Vector2(1.45519e-11, 35)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 10
+size_flags_stretch_ratio = 5.0
+theme_override_styles/panel = ExtResource("1_y35qy")
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/tmpPath/StatusPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 5
+
+[node name="PathLabel" type="Label" parent="MarginContainer/VBoxContainer/tmpPath/StatusPanel/MarginContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_qe2ex")
+theme_override_font_sizes/font_size = 30
+text = "<path>
+"
+vertical_alignment = 1
+
+[node name="BoxContainer" type="BoxContainer" parent="MarginContainer/VBoxContainer/tmpPath"]
+custom_minimum_size = Vector2(100, 1.45519e-11)
+layout_mode = 2
+
+[node name="tmpPerms" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_vertical = 8
+
+[node name="StatusPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/tmpPerms"]
+custom_minimum_size = Vector2(1.45519e-11, 35)
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 10
+size_flags_stretch_ratio = 5.0
+theme_override_styles/panel = ExtResource("1_y35qy")
+
+[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/tmpPerms/StatusPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 15
+theme_override_constants/margin_top = 5
+theme_override_constants/margin_right = 15
+theme_override_constants/margin_bottom = 5
+
+[node name="PermsLabel" type="Label" parent="MarginContainer/VBoxContainer/tmpPerms/StatusPanel/MarginContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_fonts/font = ExtResource("2_qe2ex")
+theme_override_font_sizes/font_size = 30
+text = "<perms>
+"
+vertical_alignment = 1
+script = SubResource("GDScript_1rolc")
+
+[node name="BoxContainer" type="BoxContainer" parent="MarginContainer/VBoxContainer/tmpPerms"]
+custom_minimum_size = Vector2(100, 1.45519e-11)
+layout_mode = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2

@@ -1,5 +1,4 @@
 extends Node
-
 ## Camera capabilities scanner for Android devices.
 ##
 ## Provides detailed information about device cameras including supported
@@ -10,6 +9,9 @@ signal capabilities_updated
 
 ## Emitted when the plugin singleton becomes available.
 signal plugin_ready
+
+## Path to a config resource which carries version-number into runtime.
+const PLUGIN_CFG_PATH = "res://addons/aide_de_cam/custom_resources/adc_cfg.tres"
 
 var _plugin: Object = null
 var _is_ready: bool = false
@@ -43,29 +45,29 @@ func is_plugin_available() -> bool:
 	return _plugin != null
 
 ## Returns camera capabilities as a JSON string, and writes a copy to:[br]
-## - `user://camera_capabilities.json` [br]
-##
+## - [code]user://camera_capabilities.json[/code] [br]
+## [br]
 ## Notes: [br]
 ## - Does not write to the Documents folder.
 func get_camera_capabilities() -> String:
 	if _plugin:
-		return _plugin.getCameraCapabilities()
+		return _plugin.getCameraCapabilitiesWithMeta(_get_godot_version(), _get_addon_version())
 	push_warning("[AideDeCam] Plugin not yet available")
 	return '{"error": "Plugin not available"}'
 
 ## Returns camera capabilities as a JSON string, and writes copies to:[br]
-## - `user://camera_capabilities.json` [br]
-## - `Documents/<app-name>/<documents_subdir>/camera_capabilities_<timestamp>.json` [br]
-##
+## - [code]user://camera_capabilities.json[/code] [br]
+## - [code]Documents/<app-name>/<documents_subdir>/camera_capabilities_<timestamp>.json[/code] [br]
+## [br]
 ## Parameters:[br]
-## - `documents_subdir`: Subdirectory under Documents.[br]
-##   Use ".", "/", or "" to write to the app root folder.
-##
+## - [param documents_subdir]: Subdirectory under Documents.[br]
+## - Use ".", "/", or "" to write to the app root folder.[br]
+## [br]
 ## Notes:[br]
 ## - Excessively long or malformed paths fall back to [method get_camera_capabilities].
 func get_camera_capabilities_to_file(documents_subdir: String) -> String:
 	if _plugin:
-		return _plugin.getCameraCapabilitiesToFile(documents_subdir)
+		return _plugin.getCameraCapabilitiesToFileWithMeta(documents_subdir, _get_godot_version(), _get_addon_version())
 	push_warning("[AideDeCam] Plugin not yet available")
 	return '{"error": "Plugin not available"}'
 
@@ -75,3 +77,27 @@ func _on_capabilities_updated() -> void:
 func _on_capabilities_warning(message: String) -> void:
 	#capabilities_warning.emit(message)
 	push_warning("[AideDeCam] " + message)
+	
+func _get_addon_version() -> String:
+	if not ResourceLoader.exists(PLUGIN_CFG_PATH):
+		return "?.?.?-<plugin cfg not found>"
+		
+	var cfg : PluginConfig = load(PLUGIN_CFG_PATH)
+	var result : String = cfg.version
+	var regex := RegEx.new()
+	# SemVer check
+	regex.compile(
+		r"^(0|[1-9]\d*)\." +
+		r"(0|[1-9]\d*)\." +
+		r"(0|[1-9]\d*)" +
+		r"(?:-((?:0|[1-9A-Za-z-][0-9A-Za-z-]*)" +
+		r"(?:\.(?:0|[1-9A-Za-z-][0-9A-Za-z-]*))*))?" +
+		r"(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$"
+	)
+	if regex.search(result) != null:
+		return result
+	else:
+		return "unknown"
+
+func _get_godot_version() -> String:
+	return Engine.get_version_info().get("string", "unknown")
