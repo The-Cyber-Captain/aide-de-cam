@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://sixdegreesofcrispybacon.com/aidedecam/schema/camera_capabilities_v1.schema.json",
+  "title": "AideDeCam Camera Capabilities",
+  "description": "JSON output produced by the AideDeCam Kotlin generator (schema_version = 1). This schema validates both success and error outputs.",
+  "type": "object",
+  "oneOf": [
+    { "$ref": "#/$defs/SuccessRoot" },
+    { "$ref": "#/$defs/ErrorRoot" }
+  ],
+  "$defs": {
+    "PermissionMessage": {
+      "type": "string",
+      "const": "Requires Camera permissions; grant them"
+    },
+    "VersionedGenerator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "generator"],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "generator": { "type": "string", "const": "AideDeCam" },
+        "generator_version": { "type": "string", "minLength": 1 },
+        "godot_version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "ConcurrentSupportObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "max_concurrent_cameras": { "type": "integer", "minimum": 0 },
+        "camera_id_combinations": {
+          "type": "array",
+          "items": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1 }
+          }
+        },
+        "error": { "type": "string", "minLength": 1 }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "supported": { "const": true } },
+            "required": ["supported"]
+          },
+          "then": {
+            "required": ["max_concurrent_cameras", "camera_id_combinations"]
+          }
+        },
+        {
+          "if": {
+            "properties": { "supported": { "const": false } },
+            "required": ["supported"]
+          },
+          "then": {
+            "required": ["error"]
+          }
+        }
+      ]
+    },
+    "ConcurrentSupport": {
+      "description": "SDK < 30 uses a string sentinel; SDK >= 30 uses an object (or object-with-error).",
+      "oneOf": [
+        { "type": "string", "const": "not_available_sdk_too_low" },
+        { "$ref": "#/$defs/ConcurrentSupportObject" }
+      ]
+    },
+    "SensorObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "pixel_array_width": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/PermissionMessage" }]
+        },
+        "pixel_array_height": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/PermissionMessage" }]
+        },
+        "physical_width_mm": {
+          "oneOf": [{ "type": "number", "minimum": 0 }, { "$ref": "#/$defs/PermissionMessage" }]
+        },
+        "physical_height_mm": {
+          "oneOf": [{ "type": "number", "minimum": 0 }, { "$ref": "#/$defs/PermissionMessage" }]
+        },
+        "iso_min": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/PermissionMessage" }]
+        },
+        "iso_max": {
+          "oneOf": [{ "type": "integer", "minimum": 0 }, { "$ref": "#/$defs/PermissionMessage" }]
+        }
+      },
+      "minProperties": 1
+    },
+    "CameraObject": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "camera_id": { "type": "string", "minLength": 1 },
+        "error": { "type": "string", "minLength": 1 },
+        "facing": {
+          "oneOf": [
+            { "type": "string", "enum": ["front", "back", "external", "unknown"] },
+            { "$ref": "#/$defs/PermissionMessage" }
+          ]
+        },
+        "hardware_level": {
+          "oneOf": [
+            { "type": "string", "enum": ["legacy", "limited", "full", "level_3", "external", "unknown"] },
+            { "$ref": "#/$defs/PermissionMessage" }
+          ]
+        },
+        "is_logical_multi_camera": { "type": "boolean" },
+        "sensor": { "$ref": "#/$defs/SensorObject" },
+        "focal_lengths": {
+          "oneOf": [
+            { "type": "array", "items": { "type": "number" } },
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/PermissionMessage" },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        },
+        "apertures": {
+          "oneOf": [
+            { "type": "array", "items": { "type": "number" } },
+            {
+              "type": "array",
+              "items": { "$ref": "#/$defs/PermissionMessage" },
+              "minItems": 1,
+              "maxItems": 1
+            }
+          ]
+        },
+        "warnings": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        }
+      },
+      "allOf": [
+        {
+          "description": "Two allowed shapes: (A) SecurityException camera entry: only 'error' (no camera_id), or (B) normal camera entry with camera_id and optional fields.",
+          "oneOf": [
+            { "required": ["error"], "not": { "required": ["camera_id"] } },
+            { "required": ["camera_id"] }
+          ]
+        }
+      ]
+    },
+    "SuccessRoot": {
+      "allOf": [
+        { "$ref": "#/$defs/VersionedGenerator" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "sdk_version",
+            "device_model",
+            "device_manufacturer",
+            "android_version",
+            "timestamp_ms",
+            "camera_permission_granted",
+            "concurrent_camera_support",
+            "concurrent_camera_min_sdk",
+            "cameras",
+            "warnings"
+          ],
+          "properties": {
+            "schema_version": { "type": "integer", "const": 1 },
+            "generator": { "type": "string", "const": "AideDeCam" },
+            "generator_version": { "type": "string", "minLength": 1 },
+            "godot_version": { "type": "string", "minLength": 1 },
+            "sdk_version": { "type": "integer", "minimum": 0 },
+            "device_model": { "type": "string" },
+            "device_manufacturer": { "type": "string" },
+            "android_version": { "type": "string" },
+            "timestamp_ms": { "type": "integer", "minimum": 0 },
+            "camera_permission_granted": { "type": "boolean" },
+            "camera_permission_note": { "type": "string", "minLength": 1 },
+            "concurrent_camera_support": { "$ref": "#/$defs/ConcurrentSupport" },
+            "concurrent_camera_min_sdk": { "type": "integer", "const": 30 },
+            "cameras": {
+              "type": "array",
+              "items": { "$ref": "#/$defs/CameraObject" }
+            },
+            "warnings": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      ]
+    },
+    "ErrorRoot": {
+      "allOf": [
+        { "$ref": "#/$defs/VersionedGenerator" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "error",
+            "timestamp_ms",
+            "sdk_version",
+            "device_model",
+            "device_manufacturer"
+          ],
+          "properties": {
+            "schema_version": { "type": "integer", "const": 1 },
+            "generator": { "type": "string", "const": "AideDeCam" },
+            "generator_version": { "type": "string", "minLength": 1 },
+            "godot_version": { "type": "string", "minLength": 1 },
+            "error": { "type": "string", "minLength": 1 },
+            "timestamp_ms": { "type": "integer", "minimum": 0 },
+            "sdk_version": { "type": "integer", "minimum": 0 },
+            "device_model": { "type": "string" },
+            "device_manufacturer": { "type": "string" }
+          }
+        }
+      ]
+    }
+  }
+}
