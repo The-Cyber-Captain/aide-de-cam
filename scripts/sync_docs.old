@@ -9,37 +9,11 @@ declare -A TOPICS=(
   #["docs/CHANGELOG.md"]="CHANGELOG.md addons/aide_de_cam/docs/CHANGELOG.md"
 )
 
-strip_release_blocks() {
-  # Removes:
-  # <!-- RELEASE:EXCLUDE:BEGIN --> ... <!-- RELEASE:EXCLUDE:END -->
-  perl -0777 -pe 's/<!--\s*RELEASE:EXCLUDE:BEGIN\s*-->.*?<!--\s*RELEASE:EXCLUDE:END\s*-->\n?//sg' "$1"
-}
-
-rewrite_docs_asset_paths_for_root() {
-  # In docs/README.md, author image/link paths as: (screenshots/...)
-  # In root README.md, they must be: (docs/screenshots/...)
-  perl -pe 's#(\]\()screenshots/#$1docs/screenshots/#g; s#(\]\[)screenshots/#$1docs/screenshots/#g' "$1"
-}
-
 # 1) Sync fixed-topic docs
 for src in "${!TOPICS[@]}"; do
   [[ -f "$src" ]] || { echo "Missing source: $src" >&2; exit 1; }
-
   for dst in ${TOPICS[$src]}; do
     mkdir -p "$(dirname "$dst")"
-
-    if [[ "$src" == "docs/README.md" && "$dst" == "README.md" ]]; then
-      # Root README: keep screenshots, but rewrite asset paths for root visibility.
-      rewrite_docs_asset_paths_for_root "$src" > "$dst"
-      continue
-    fi
-
-    if [[ "$src" == "docs/README.md" && "$dst" == addons/*/docs/README.md ]]; then
-      # Addons README: strip screenshot blocks entirely (no images shipped / no broken paths).
-      strip_release_blocks "$src" > "$dst"
-      continue
-    fi
-
     cp "$src" "$dst"
   done
 done

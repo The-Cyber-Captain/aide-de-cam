@@ -426,7 +426,22 @@ func _validate_documents_copy_best_effort(label: String, subdir: String, validat
 	if clean_subdir != "":
 		base_dir = base_dir.path_join(clean_subdir)
 
-	var newest_path: String = _find_newest_matching_json(base_dir, "camera_capabilities_", ".json", notes)
+	#var newest_path: String = _find_newest_matching_json(base_dir, "camera_capabilities_", ".json", notes)
+	
+	var find_res: Dictionary = _find_newest_matching_json(base_dir, "camera_capabilities_", ".json")
+	var newest_path: String = String(find_res.get("path", ""))
+	var open_err: int = int(find_res.get("open_error", 0))
+	if newest_path == "":
+		if open_err != 0:
+			notes.append("%s: documents: cannot open dir %s (err=%d)" % [label, base_dir, open_err])
+			if require_if_possible:
+				notes.append("%s: documents: required, but directory is inaccessible; not failing" % label)
+			else:
+				notes.append("%s: documents: no file found under %s (fallback likely)" % [label, base_dir])
+			return
+	
+	
+	
 	if newest_path == "":
 		if require_if_possible:
 			_assert(assertions, false, "%s: documents: expected file missing under %s" % [label, base_dir])
@@ -510,7 +525,7 @@ func _try_connect_signal(obj: Object, signal_name: String, callable: Callable, o
 			_mark_signal_observable(signal_name)
 			return
 	# Now silent (in Notes) when a connection is made
-	#var err: int = int(obj.call("connect", signal_name, callable))
+	var err: int = int(obj.call("connect", signal_name, callable))
 	#out.append("%s connect=%s on %s" % [signal_name, str(err), obj.get_class()])
 	_mark_signal_observable(signal_name)
 
@@ -633,11 +648,16 @@ func _stable_join(arr: Array) -> String:
 	tmp.sort()
 	return "[" + ", ".join(tmp) + "]"
 
-func _find_newest_matching_json(dir_path: String, prefix: String, suffix: String, notes: Array[String]) -> String:
+
+func _find_newest_matching_json(dir_path: String, prefix: String, suffix: String) -> Dictionary:
+	var out: Dictionary = {"path": "", "open_error": 0}
+#func _find_newest_matching_json(dir_path: String, prefix: String, suffix: String, notes: Array[String]) -> String:
 	var d = DirAccess.open(dir_path)
 	if d == null:
-		notes.append("documents: cannot open dir %s (err=%s)" % [dir_path, str(DirAccess.get_open_error())])
-		return ""
+		out["open_error"] = int(DirAccess.get_open_error())
+		return out
+		#notes.append("documents: cannot open dir %s (err=%s)" % [dir_path, str(DirAccess.get_open_error())])
+		#return ""
 	d.list_dir_begin()
 	var best: String = ""
 	var best_mtime: int = -1
@@ -655,4 +675,6 @@ func _find_newest_matching_json(dir_path: String, prefix: String, suffix: String
 			best_mtime = mtime
 			best = full
 	d.list_dir_end()
-	return best
+	#return best
+	out["path"] = best
+	return out

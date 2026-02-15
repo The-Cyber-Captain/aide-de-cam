@@ -1,14 +1,16 @@
 # AideDeCam Test Harness (Production-Ready Skeleton)
 
-This folder is meant to be copied into your Godot project (or merged into it).
+This is a working tool you can modify as required; presented as a Godot project.
 
 ## What it tests
+- Non-security contract
+- Signals and fallback
 - Runs a security/abuse vector suite against:
   1. The recommended GDScript autoload wrapper at `/root/AideDeCam` (methods per aidedecam.xml)
   2. The direct Android plugin singleton via `Engine.get_singleton("AideDeCam")` (Kotlin `@UsedByGodot` methods)
 
 - Validates returned JSON + `user://camera_capabilities.json` against:
-  `tests/schema/aidedecam-camera-capabilities-v1.schema.json`
+  `addons/aide_de_cam/doc_classes/aidedecam-camera-capabilities-v1.schema.json`
 
 - Emits a machine-readable report at:
   `user://aidedecam_harness_report.json`
@@ -20,7 +22,8 @@ This folder is meant to be copied into your Godot project (or merged into it).
 #3. Ensure the Android plugin singleton is available as `AideDeCam`.
 
 ## Run
-- Create a minimal scene with a Node and attach: `tests/run_harness.gd`
+- Open project.godot (AideDeCamTest)
+- Run Main 
 - Run on Android device (or Android Editor run).
 - Check console and `user://aidedecam_harness_report.json`.
 
@@ -31,4 +34,4 @@ This folder is meant to be copied into your Godot project (or merged into it).
   warning is emitted only by the wrapper/autoload (not by Kotlin), you can set this to `false` for singleton runs or adjust the suite.
 
 ## Schema hash
-- Embedded schema SHA256: `cd97fb1293c847210a07d601714b51fe70c43b9b34687218359adc8b04fd18af`
+- Embedded schema SHA256: `9168c92a9a4adcb5fc528d9d16600cb7571cdc1b8e270befae181f4a516bb6cb`

@@ -15,6 +15,7 @@ run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
 boot_splash/image="res://branding/splash-test.png"
 config/icon="uid://drn85d5dgvbr6"
+boot_splash/minimum_display_time=3000
 
 [autoload]
 

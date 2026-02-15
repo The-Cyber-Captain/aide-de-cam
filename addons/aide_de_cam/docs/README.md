@@ -45,6 +45,8 @@ Per-camera warnings array + global warnings summary
 Logical Multi-Camera:  
 Detects multi-lens setups with sync type info. Well... it *Should*. Currently untested as [@The-Cyber-Captain](https://github.com/The-Cyber-Captain) has no such hardware.
 
+Full schema? See: aidedecam-camera-capabilities-v1.schema.md 
+
 ### Installation
 
 #### Release:
@@ -71,8 +73,10 @@ Sure, why not? Enjoy. 😉
 
 ### Demo
 
-- Open the demo scene, demos/
-- Install Aide-De-Cam
+- Open the demo project, demos/aidedecamdemo.
+- Install Aide-De-Cam.
+- Plug in a suitable device.
+- One-touch deploy.
 
 [TODO]: Add screenshot
 
@@ -81,8 +85,8 @@ Code: The Unlicense
 
 Build tooling: Gradle Wrapper (Apache-2.0)[^2]  
 
-Fonts: Bitcount_Single (SIL Open Font License-1.1)[[^2]
-[^2]:See `THIRD_PARTY_NOTICES.md`  
+Fonts: Bitcount_Single (SIL Open Font License-1.1)[[^3]
+[^2][^3]:See `THIRD_PARTY_NOTICES.md`  
 
 ### Support me! 🥛🍞
 
