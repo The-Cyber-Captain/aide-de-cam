@@ -22,26 +22,64 @@ import java.util.*
 
 class AideDeCam(godot: Godot) : GodotPlugin(godot) {
 
-    companion object {
-        private const val PLUGIN_NAME = "AideDeCam"
-        private const val SCHEMA_VER = 1
+	companion object {
+		private const val PLUGIN_NAME = "AideDeCam"
+		private const val SCHEMA_VER = 1
 
-        private const val MIN_SDK_VERSION = 21 // Camera2 API minimum
-        private const val CONCURRENT_CAMERA_SDK = 30 // Android 11
+		private const val MIN_SDK_VERSION = 21
+		private const val CONCURRENT_CAMERA_SDK = 30
 
-        // Public/shared filename + naming conventions
-        private const val CAPABILITIES_BASENAME = "camera_capabilities"
-        private const val CAPABILITIES_USER_FILENAME = "${CAPABILITIES_BASENAME}.json"
-        private const val CAPABILITIES_TIMESTAMP_FORMAT = "yyyyMMdd_HHmmss"
+		private const val CAPABILITIES_BASENAME = "camera_capabilities"
+		private const val CAPABILITIES_USER_FILENAME = "${CAPABILITIES_BASENAME}.json"
+		private const val CAPABILITIES_TIMESTAMP_FORMAT = "yyyyMMdd_HHmmss"
 
-        // Defensive caps to avoid pathological path/segment behavior (hang/ANR vectors)
-        private const val MAX_DOCUMENTS_SUBDIR_LENGTH = 512
-        private const val MAX_DOCUMENTS_SUBDIR_SEGMENTS = 16
+		private const val MAX_DOCUMENTS_SUBDIR_LENGTH = 512
+		private const val MAX_DOCUMENTS_SUBDIR_SEGMENTS = 16
 
-        // Signals
-        private const val SIGNAL_CAPABILITIES_UPDATED = "capabilities_updated"
-        private const val SIGNAL_CAPABILITIES_WARNING = "capabilities_warning"
-    }
+		private const val SIGNAL_CAPABILITIES_UPDATED = "capabilities_updated"
+		private const val SIGNAL_CAPABILITIES_WARNING = "capabilities_warning"
+
+		private data class ExposedMethod(
+			val name: String,
+			val argc: Int,
+			val argTypes: List<String> = emptyList(),
+			val returnType: String = "String",
+			val tags: List<String> = emptyList()
+		)
+
+		// Single source of truth for exported surface.
+		private val EXPOSED_METHODS: List<ExposedMethod> = listOf(
+			ExposedMethod(
+				name = "getCameraCapabilities",
+				argc = 0,
+				tags = listOf("caps", "writes_user")
+			),
+			ExposedMethod(
+				name = "getCameraCapabilitiesToFile",
+				argc = 1,
+				argTypes = listOf("String"),
+				tags = listOf("caps", "writes_user", "writes_documents")
+			),
+			ExposedMethod(
+				name = "getCameraCapabilitiesWithMeta",
+				argc = 2,
+				argTypes = listOf("String", "String"),
+				tags = listOf("caps", "writes_user")
+			),
+			ExposedMethod(
+				name = "getCameraCapabilitiesToFileWithMeta",
+				argc = 3,
+				argTypes = listOf("String", "String", "String"),
+				tags = listOf("caps", "writes_user", "writes_documents")
+			),
+			ExposedMethod(
+				name = "getExposedMethods",
+				argc = 0,
+				tags = listOf("inventory")
+			),
+		)
+	}
+
 
     private data class CapMeta(
         val godotVersion: String?,
@@ -59,11 +97,76 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
         SignalInfo(SIGNAL_CAPABILITIES_WARNING, String::class.java)
     )
 
+		
+	// NOTE: Godot JNISingleton introspection (has_method) can be unreliable.
+	// We still provide an explicit exported method list here and a runtime inventory via getExposedMethods().
     //override fun getPluginMethods(): List<String> = listOf(
     //"getCameraCapabilities",
     //"getCameraCapabilitiesToFile"
     //)
+	
+	override fun getPluginMethods(): List<String> =
+		EXPOSED_METHODS.map { it.name }
+	
+	@UsedByGodot
+	fun getExposedMethods(): String {
+		val root = JSONObject()
 
+		// Inventory contract version (independent of camera capabilities schema)
+		root.put("inventory_schema_version", 1)
+		root.put("generator", PLUGIN_NAME)
+		root.put("generator_kind", "android_plugin_inventory")
+		root.put("plugin_name", PLUGIN_NAME)
+
+		// Exports: explicitly report what Godot should treat as exported
+		val exportsObj = JSONObject()
+		exportsObj.put("export_mechanism", "getPluginMethods")
+
+		val exportedMethodsArr = JSONArray()
+		for (name in getPluginMethods()) exportedMethodsArr.put(name)
+		exportsObj.put("exported_methods", exportedMethodsArr)
+
+		val signalsArr = JSONArray()
+		signalsArr.put(JSONObject().put("name", SIGNAL_CAPABILITIES_UPDATED).put("argc", 0))
+		signalsArr.put(
+			JSONObject()
+				.put("name", SIGNAL_CAPABILITIES_WARNING)
+				.put("argc", 1)
+				.put("arg_types", JSONArray().put("String"))
+		)
+		exportsObj.put("signals", signalsArr)
+		root.put("exports", exportsObj)
+
+		// Methods: rich metadata (forward-compatible)
+		val methodsArr = JSONArray()
+		for (m in EXPOSED_METHODS) {
+			val mObj = JSONObject()
+			mObj.put("name", m.name)
+			mObj.put("argc", m.argc)
+			mObj.put("return_type", m.returnType)
+
+			if (m.argTypes.isNotEmpty()) {
+				val a = JSONArray()
+				for (t in m.argTypes) a.put(t)
+				mObj.put("arg_types", a)
+			}
+
+			if (m.tags.isNotEmpty()) {
+				val t = JSONArray()
+				for (tag in m.tags) t.put(tag)
+				mObj.put("tags", t)
+			}
+
+			methodsArr.put(mObj)
+		}
+		root.put("methods", methodsArr)
+
+		// Reserved forward-compat fields (keep them even if empty)
+		root.put("extensions", JSONObject())
+
+		return root.toString(2)
+	}
+	
     @UsedByGodot
     fun getCameraCapabilities(): String {
         // True 0-arg entry point for GDScript dot-calls.
@@ -115,18 +218,37 @@ class AideDeCam(godot: Godot) : GodotPlugin(godot) {
             // This is the canonical location read by GDScript via user://camera_capabilities.json
             saveToUserDir(capabilitiesJson)
 
-            // Optionally write a duplicate to Documents/<app-name>/(documentsSubdir)/
-            // If documentsSubdir is abusive (too long / too many segments), fall back to the 0-arg behavior.
-            val validatedDocumentsSubdir = documentsSubdirOrNull?.let { validateDocumentsSubdirOrNull(it) }
-            if (validatedDocumentsSubdir != null) {
-                try {
-                    saveToDocuments(capabilitiesJson, validatedDocumentsSubdir)
-                } catch (e: Exception) {
-                    emitCapabilitiesWarning(
-                        "Couldn't write camera capabilities to Documents (skipping). Reason: ${e.javaClass.simpleName}: ${e.message}"
-                    )
-                }
-            }
+ //           // Optionally write a duplicate to Documents/<app-name>/(documentsSubdir)/
+ //           // If documentsSubdir is abusive (too long / too many segments), fall back to the 0-arg behavior.
+ //           val validatedDocumentsSubdir = documentsSubdirOrNull?.let { validateDocumentsSubdirOrNull(it) }
+ //           if (validatedDocumentsSubdir != null) {
+ //               try {
+ //                   saveToDocuments(capabilitiesJson, validatedDocumentsSubdir)
+ //               } catch (e: Exception) {
+ //                   emitCapabilitiesWarning(
+ //                       "Couldn't write camera capabilities to Documents (skipping). Reason: ${e.javaClass.simpleName}: ${e.message}"
+ //                   )
+ //               }
+ //           }
+
+			// Optionally write a duplicate to Documents/<app-name>/(documentsSubdir)/
+			if (documentsSubdirOrNull != null) {
+				val validatedDocumentsSubdir = validateDocumentsSubdirOrNull(documentsSubdirOrNull)
+				
+				if (validatedDocumentsSubdir == null) {
+					// Validation failed - emit warning
+					emitCapabilitiesWarning("Invalid documentsSubdir parameter (too long or invalid path)")
+				} else {
+					// Validation passed - try to save
+					try {
+						saveToDocuments(capabilitiesJson, validatedDocumentsSubdir)
+					} catch (e: Exception) {
+						emitCapabilitiesWarning(
+							"Couldn't write camera capabilities to Documents (skipping). Reason: ${e.javaClass.simpleName}: ${e.message}"
+						)
+					}
+				}
+			}
 
 
             // Signal after we have successfully written the primary app-scoped file

@@ -34,10 +34,10 @@ for src in "${schema_sources[@]}"; do
 
   case "$base" in
     *.schema.json)
-      dsts=("$base" "addons/aide_de_cam/doc_classes/$base")
+      dsts=("addons/aide_de_cam/doc_classes/$base")
       ;;
     *.schema.md)
-      dsts=("$base" "addons/aide_de_cam/docs/$base")
+      dsts=("addons/aide_de_cam/docs/$base")
       ;;
     *)
       continue
@@ -56,5 +56,5 @@ for src in "${!TOPICS[@]}"; do
 done
 echo "Synced schema files:"
 for src in "${schema_sources[@]}"; do
-  echo "  $src -> $(basename "$src") and addons/aide_de_cam/(doc_classes|docs)/$(basename "$src")"
+  echo "  $src -> addons/aide_de_cam/(doc_classes|docs)/$(basename "$src")"
 done

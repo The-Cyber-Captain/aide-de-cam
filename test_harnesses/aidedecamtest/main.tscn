@@ -1,0 +1,55 @@
+[gd_scene load_steps=3 format=3 uid="uid://c6e1u0er8jj8a"]
+
+[ext_resource type="Script" uid="uid://l1jtpgufkqo3" path="res://run_harness.gd" id="1_ig7tw"]
+
+[sub_resource type="GDScript" id="GDScript_ig7tw"]
+resource_name = "working"
+script/source = "extends Label
+
+const POLL_INTERVAL = 0.5
+const SYMBOLS = [\"/\", \"-\", \"\\\\\", \"|\"]
+var symbol_idx : int = 0
+var timer : Timer
+
+func _ready():
+	timer =  Timer.new()
+	add_child(timer)
+	timer.timeout.connect(_draw_progress)
+	start_draw_progress()
+	
+func _draw_progress():
+	self.text = \"Working: %s\" % [SYMBOLS[symbol_idx]]
+	symbol_idx = (symbol_idx + 1) % SYMBOLS.size()
+
+func stop_draw_progress():
+	timer.stop()
+	
+func start_draw_progress():
+	timer.start(POLL_INTERVAL)
+"
+
+[node name="Main" type="Node"]
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="StatusLabel" type="Label" parent="Panel"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_font_sizes/font_size = 45
+text = "Hurro"
+horizontal_alignment = 1
+vertical_alignment = 1
+script = SubResource("GDScript_ig7tw")
+
+[node name="TestRunner" type="Node" parent="."]
+script = ExtResource("1_ig7tw")

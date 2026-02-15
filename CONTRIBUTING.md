@@ -3,7 +3,7 @@ WIP
 Clone the repo https://github.com/The-Cyber-Captain/aide-de-cam.git
 
 Test-harness:
-TODO
+test_harnesses/aidedecamtest/project.godot
 
 Demo:
 demos/aidedecamdemo/project.godot
