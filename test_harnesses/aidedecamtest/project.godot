@@ -13,7 +13,7 @@ config_version=5
 config/name="AideDeCamTest"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.5", "GL Compatibility")
-boot_splash/image="res://branding/splash-test.png"
+boot_splash/image="uid://bg8m5yjfnrvf7"
 config/icon="uid://drn85d5dgvbr6"
 boot_splash/minimum_display_time=3000
 
@@ -25,6 +25,7 @@ AideDeCam="*res://addons/aide_de_cam/aidedecam.gd"
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
+window/handheld/orientation=4
 
 [editor_plugins]
 

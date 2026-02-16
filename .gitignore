@@ -31,6 +31,13 @@ replay_pid*
 # Local configuration file (contains SDK path with your username)
 local.properties
 
+# Android signing keys
+*.keystore
+*.jks
+*.keystore.*
+android/debug.keystore
+android/release.keystore
+
 # Gradle files
 .gradle/
 build/
@@ -77,3 +84,5 @@ export_presets.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+

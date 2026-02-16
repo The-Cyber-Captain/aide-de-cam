@@ -19,7 +19,7 @@ corner_radius_bottom_right = 16
 corner_radius_bottom_left = 16
 
 [resource]
-default_font_size = 40
+default_font_size = 30
 Button/colors/font_hover_color = Color(1, 0.988235, 0, 1)
 Button/styles/disabled = null
 Button/styles/focus = null

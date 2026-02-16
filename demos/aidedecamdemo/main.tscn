@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3 uid="uid://byfiroliiyvqy"]
+[gd_scene load_steps=12 format=3 uid="uid://byfiroliiyvqy"]
 
 [ext_resource type="Theme" uid="uid://dilir1ustsxj1" path="res://themes/panel_container_theme.tres" id="1_kdfef"]
 [ext_resource type="StyleBox" uid="uid://ck44vm33io7h3" path="res://themes/info_panel_style.tres" id="1_y35qy"]
@@ -29,7 +29,6 @@ func _watch_for_plugin():
 	if AideDeCam.is_plugin_available():
 		AideDeCam.capabilities_updated.connect(_display_capabilties_from_file)
 		status_string = \"Connected to singleton\"
-		%PathLabel.text = AideDeCam._get_addon_version()
 		return
 		
 	status_string = \"Aide-De-Cam plugin not detected\"	
@@ -76,7 +75,10 @@ func _display_capabilties_from_file():
 
 func _populate_camera_panels(cam_lines : Array, panels : Array[Node]):
 	for idx : int in range(0, cam_lines.size()):
-		panels[idx].get_child(0).get_child(0).text = cam_lines[idx]
+		var mc : MarginContainer = panels[idx].get_child(0)
+		var sc : ScrollContainer = mc.get_child(0)
+		var lab : Label = sc.get_child(0)
+		lab.text = cam_lines[idx]
 		status_string = \"populating: %d\" % [idx]
 
 func _calc_grid_columns(item_count : int) -> int:
@@ -94,28 +96,36 @@ func _create_and_add_grid_panel():
 	pan.add_child(mc)
 	mc.owner = pan
 	
+	var sc : TouchScroll = TouchScroll.new()
+	#sc.set_anchors_preset(Control.PRESET_FULL_RECT)
+	sc.get_v_scroll_bar().custom_minimum_size.x = 24  # thickness
+	sc.get_h_scroll_bar().custom_minimum_size.y = 24  # thickness
+	mc.add_child(sc)
+	sc.owner = mc
+	
 	var lab : Label = Label.new()
-	lab.set_anchors_preset(Control.PRESET_FULL_RECT)
-	lab.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	#lab.set_anchors_preset(Control.PRESET_FULL_RECT)
+	lab.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lab.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	lab.custom_minimum_size = Vector2i(128,128) # arbitrary small; required for wrap
+	#lab.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	lab.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	#lab.clip_text = true
-	mc.add_child(lab)
-	lab.owner = mc
+	sc.add_child(lab)
+	lab.owner = sc
+	
 	%GridContainer.add_child(pan)
 	pan.owner = %GridContainer
 
 func _parse_capabilities_json() -> Dictionary:
-	%PathLabel.text = OS.get_user_data_dir()
 	var text := FileAccess.get_file_as_string(FILENAME)
 	if text.is_empty():
 		push_error(\"Empty file: %s\" % FILENAME)
-		%PathLabel.text = \"Empty file. %s\" % [FILENAME]
 		return {}
 
 	var parsed : Variant = JSON.parse_string(text)
 	if parsed == null or typeof(parsed) != TYPE_DICTIONARY:
 		push_error(\"Invalid JSON in: %s\" % FILENAME)
-		%PathLabel.text = \"Invalid JSON %s\" % [FILENAME]
 		return {}
 
 	var root: Dictionary = parsed
@@ -156,25 +166,11 @@ func _parse_capabilities_json() -> Dictionary:
 	else:
 		cc_note = \" | concurrent=unexpected_type(%s)\" % str(typeof(cc_v))
 
-	#var combos_str := \"\"
-	#if cc_supported and combos.size() > 0:
-		## combos is an array of arrays of strings, e.g. [[\"0\",\"1\"],[\"0\",\"3\"]]
-		#var combo_parts: Array[String] = []
-		#for combo in combos:
-			#if typeof(combo) == TYPE_ARRAY:
-				#var ids: Array[String] = []
-				#for idv in combo:
-					#ids.append(str(idv))
-				#combo_parts.append(\"[\" + \",\".join(ids) + \"]\")
-		#if combo_parts.size() > 0:
-			#combos_str = \", combos=\" + \"; \".join(combo_parts)
-			
 	var combos_str := \"\"
 	if cc_supported:
 		var joined := _safe_join_combo_arrays(combos)
 		if not joined.is_empty():
 			combos_str = \", combos=\" + joined
-
 
 	var line_system := \"SDK %d | camera_permission=%s | concurrent=%s (max=%d)%s%s\" % [
 		sdk, str(perm), str(cc_supported), max_cc, combos_str, cc_note
@@ -210,7 +206,6 @@ func _parse_capabilities_json() -> Dictionary:
 		var warnings: Array = cam.get(\"warnings\", [])
 
 		var parts: Array[String] = []
-		#parts.append(\"id=%s\" % cam_id)
 		parts.append(\"facing=%s\" % facing)
 		parts.append(\"hw=%s\" % hw)
 		parts.append(\"logical=%s\" % str(logical))
@@ -365,18 +360,9 @@ func _on_button_pressed():
 		return
 
 	status_string = str(Engine.has_singleton(\"AideDeCam\"))
-	AideDeCam.get_camera_capabilities_to_file(\"new_schema_check\")#.repeat(100))
-	#AideDeCam.get_camera_capabilities()
+	#AideDeCam.get_camera_capabilities_to_file(\"new_schema_check\")#.repeat(100))
+	AideDeCam.get_camera_capabilities()
 	status_string = \"Capabilities requested\"
-"
-
-[sub_resource type="GDScript" id="GDScript_1rolc"]
-resource_name = "tmp_perms"
-script/source = "extends Label
-
-func _process(delta):
-	if Engine.get_frames_drawn() % 30 == 0:
-		self.text = \"frm: %d	perms: %s\" % [Engine.get_frames_drawn(), OS.get_granted_permissions()]
 "
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_8beu7"]
@@ -441,7 +427,7 @@ layout_mode = 2
 [node name="RigNamePanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/HeaderContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
-size_flags_stretch_ratio = 5.0
+size_flags_stretch_ratio = 10.0
 theme = ExtResource("1_kdfef")
 
 [node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/HeaderContainer/RigNamePanel"]
@@ -455,7 +441,6 @@ theme_override_constants/margin_bottom = 5
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_qe2ex")
-theme_override_font_sizes/font_size = 35
 text = "<Rig Name>"
 vertical_alignment = 1
 
@@ -476,6 +461,10 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_exqk4")
 text = "Permissions"
 script = SubResource("GDScript_2gdjq")
 
+[node name="BoxContainer2" type="BoxContainer" parent="MarginContainer/VBoxContainer/HeaderContainer"]
+custom_minimum_size = Vector2(50, 1.45519e-11)
+layout_mode = 2
+
 [node name="QueryButton" type="Button" parent="MarginContainer/VBoxContainer/HeaderContainer"]
 layout_mode = 2
 size_flags_horizontal = 10
@@ -485,7 +474,7 @@ theme = ExtResource("3_amoat")
 text = "Query"
 script = SubResource("GDScript_xry8p")
 
-[node name="BoxContainer2" type="BoxContainer" parent="MarginContainer/VBoxContainer/HeaderContainer"]
+[node name="BoxContainer3" type="BoxContainer" parent="MarginContainer/VBoxContainer/HeaderContainer"]
 custom_minimum_size = Vector2(100, 1.45519e-11)
 layout_mode = 2
 
@@ -503,7 +492,6 @@ theme_override_constants/margin_bottom = 5
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_qe2ex")
-theme_override_font_sizes/font_size = 30
 text = "<Rig Info>"
 
 [node name="GridMargin" type="MarginContainer" parent="MarginContainer/VBoxContainer"]
@@ -521,71 +509,6 @@ size_flags_vertical = 3
 theme_override_constants/h_separation = 35
 theme_override_constants/v_separation = 20
 columns = 3
-
-[node name="tmpPath" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-size_flags_vertical = 8
-
-[node name="StatusPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/tmpPath"]
-custom_minimum_size = Vector2(1.45519e-11, 35)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 10
-size_flags_stretch_ratio = 5.0
-theme_override_styles/panel = ExtResource("1_y35qy")
-
-[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/tmpPath/StatusPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 15
-theme_override_constants/margin_top = 5
-theme_override_constants/margin_right = 15
-theme_override_constants/margin_bottom = 5
-
-[node name="PathLabel" type="Label" parent="MarginContainer/VBoxContainer/tmpPath/StatusPanel/MarginContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_fonts/font = ExtResource("2_qe2ex")
-theme_override_font_sizes/font_size = 30
-text = "<path>
-"
-vertical_alignment = 1
-
-[node name="BoxContainer" type="BoxContainer" parent="MarginContainer/VBoxContainer/tmpPath"]
-custom_minimum_size = Vector2(100, 1.45519e-11)
-layout_mode = 2
-
-[node name="tmpPerms" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
-layout_mode = 2
-size_flags_vertical = 8
-
-[node name="StatusPanel" type="PanelContainer" parent="MarginContainer/VBoxContainer/tmpPerms"]
-custom_minimum_size = Vector2(1.45519e-11, 35)
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 10
-size_flags_stretch_ratio = 5.0
-theme_override_styles/panel = ExtResource("1_y35qy")
-
-[node name="MarginContainer" type="MarginContainer" parent="MarginContainer/VBoxContainer/tmpPerms/StatusPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 15
-theme_override_constants/margin_top = 5
-theme_override_constants/margin_right = 15
-theme_override_constants/margin_bottom = 5
-
-[node name="PermsLabel" type="Label" parent="MarginContainer/VBoxContainer/tmpPerms/StatusPanel/MarginContainer"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_fonts/font = ExtResource("2_qe2ex")
-theme_override_font_sizes/font_size = 30
-text = "<perms>
-"
-vertical_alignment = 1
-script = SubResource("GDScript_1rolc")
-
-[node name="BoxContainer" type="BoxContainer" parent="MarginContainer/VBoxContainer/tmpPerms"]
-custom_minimum_size = Vector2(100, 1.45519e-11)
-layout_mode = 2
 
 [node name="HBoxContainer" type="HBoxContainer" parent="MarginContainer/VBoxContainer"]
 layout_mode = 2
@@ -610,7 +533,7 @@ theme_override_constants/margin_bottom = 5
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_fonts/font = ExtResource("2_qe2ex")
-theme_override_font_sizes/font_size = 30
+theme_override_font_sizes/font_size = 20
 text = "Status: [undefined]"
 vertical_alignment = 1
 

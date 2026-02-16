@@ -56,7 +56,6 @@ Full schema? See: aidedecam-camera-capabilities-v1.schema.md
 - Enable addon in Godot  
 
     Project -> Project Settings -> Plugins -> AideDeCam :ballot_box_with_check: 
-[TODO]: Add screenshot
 
 - Profit?
 
@@ -75,6 +74,7 @@ Sure, why not? Enjoy. 😉
 
 - Open the demo project, demos/aidedecamdemo.
 - Install Aide-De-Cam.
+- Create an Android export preset; add Camera permissions for full functionality
 - Plug in a suitable device.
 - One-touch deploy.
 
@@ -85,7 +85,7 @@ Code: The Unlicense
 
 Build tooling: Gradle Wrapper (Apache-2.0)[^2]  
 
-Fonts: Bitcount_Single (SIL Open Font License-1.1)[[^3]
+Fonts: Bitcount_Single (SIL Open Font License-1.1)[^3]
 [^2][^3]:See `THIRD_PARTY_NOTICES.md`  
 
 ### Support me! 🥛🍞

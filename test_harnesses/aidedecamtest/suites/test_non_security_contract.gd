@@ -7,7 +7,10 @@ func group() -> String: return "contract"
 func run(_runner: HarnessRunner) -> Dictionary:
 	var assertions: Array = []
 	var notes: Array[String] = []
-	var artifacts: Dictionary = {}
+	var artifacts: Dictionary = {
+		"schema_path": SecurityPolicy.SCHEMA_PATH,
+		"schema_sha256_expected": SecurityPolicy.SCHEMA_SHA256,
+	}
 
 	var is_android: bool = OS.get_name() == "Android"
 	_assert(assertions, is_android, "platform: Android")
@@ -24,22 +27,40 @@ func run(_runner: HarnessRunner) -> Dictionary:
 	if singleton == null:
 		return _finish("skip", assertions, notes, artifacts)
 
+	var schema_text: String = ""
+	if FileAccess.file_exists(SecurityPolicy.SCHEMA_PATH):
+		schema_text = FileAccess.get_file_as_string(SecurityPolicy.SCHEMA_PATH)
+	else:
+		notes.append("schema: missing file at %s" % SecurityPolicy.SCHEMA_PATH)
+
+	if schema_text == "":
+		_assert(assertions, false, "schema: load from SecurityPolicy.SCHEMA_PATH")
+		return _finish("fail", assertions, notes, artifacts)
+
+	var resolver := JsonSchemaResolver.new()
+	resolver.load_schema_from_text(schema_text)
+	var root_schema: Dictionary = resolver.schema_root
+	var validator := JsonSchemaValidator.new(resolver)
+
 	var base_raw: Variant = singleton.call("getCameraCapabilities")
 	_assert(assertions, typeof(base_raw) == TYPE_STRING and String(base_raw).length() > 0, "api: getCameraCapabilities returns non-empty String")
+	var payload: Dictionary = _parse_dict(String(base_raw), "getCameraCapabilities", assertions)
+	if payload.is_empty():
+		return _finish("fail", assertions, notes, artifacts)
+	artifacts["base_payload_keys"] = payload.keys()
+	_validate_schema_dict("json:getCameraCapabilities", payload, validator, root_schema, assertions, notes)
 
 	var file_raw_empty: Variant = singleton.call("getCameraCapabilitiesToFile", "")
 	_assert(assertions, typeof(file_raw_empty) == TYPE_STRING and String(file_raw_empty).length() > 0, "api: getCameraCapabilitiesToFile('') returns non-empty String")
+	var payload_empty: Dictionary = _parse_dict(String(file_raw_empty), "getCameraCapabilitiesToFile('')", assertions)
+	if not payload_empty.is_empty():
+		_validate_schema_dict("json:getCameraCapabilitiesToFile('')", payload_empty, validator, root_schema, assertions, notes)
 
 	var file_raw_custom: Variant = singleton.call("getCameraCapabilitiesToFile", "custom_subdir")
 	_assert(assertions, typeof(file_raw_custom) == TYPE_STRING and String(file_raw_custom).length() > 0, "api: getCameraCapabilitiesToFile('custom_subdir') returns non-empty String")
-
-	var payload_v: Variant = JSON.parse_string(String(base_raw))
-	_assert(assertions, typeof(payload_v) == TYPE_DICTIONARY, "json: getCameraCapabilities payload parses to Dictionary")
-	if typeof(payload_v) != TYPE_DICTIONARY:
-		return _finish("fail", assertions, notes, artifacts)
-
-	var payload: Dictionary = payload_v
-	artifacts["base_payload_keys"] = payload.keys()
+	var payload_custom: Dictionary = _parse_dict(String(file_raw_custom), "getCameraCapabilitiesToFile('custom_subdir')", assertions)
+	if not payload_custom.is_empty():
+		_validate_schema_dict("json:getCameraCapabilitiesToFile('custom_subdir')", payload_custom, validator, root_schema, assertions, notes)
 
 	var required: Array[String] = ["sdk_version", "device_model", "device_manufacturer", "cameras"]
 	var has_required: bool = true
@@ -69,39 +90,6 @@ func run(_runner: HarnessRunner) -> Dictionary:
 	if typeof(cameras_v) == TYPE_ARRAY:
 		var cameras: Array = cameras_v
 		_assert(assertions, cameras.size() > 0, "camera: cameras array non-empty")
-		for c in cameras:
-			if typeof(c) != TYPE_DICTIONARY:
-				_assert(assertions, false, "camera: each camera entry is Dictionary")
-				continue
-			var cd: Dictionary = c
-			_assert(assertions, cd.has("camera_id"), "camera: camera_id present")
-			_assert(assertions, cd.has("facing"), "camera: facing present")
-			_assert(assertions, cd.has("hardware_level"), "camera: hardware_level present")
-			if cd.has("facing"):
-				_assert(assertions, ["front", "back", "external", "unknown"].has(String(cd["facing"])), "camera: facing value valid")
-			if cd.has("hardware_level"):
-				_assert(assertions, ["legacy", "limited", "full", "level_3", "unknown"].has(String(cd["hardware_level"])), "camera: hardware_level value valid")
-
-	_assert(assertions, payload.has("concurrent_camera_support"), "concurrency: concurrent_camera_support present")
-	if payload.has("concurrent_camera_support"):
-		var ccs: Variant = payload["concurrent_camera_support"]
-		var type_ok: bool = typeof(ccs) == TYPE_STRING or typeof(ccs) == TYPE_DICTIONARY
-		_assert(assertions, type_ok, "concurrency: concurrent_camera_support type is String or Dictionary")
-		if typeof(ccs) == TYPE_DICTIONARY:
-			var ccsd: Dictionary = ccs
-			_assert(assertions, ccsd.has("supported"), "concurrency: dictionary has supported")
-			if bool(ccsd.get("supported", false)):
-				_assert(assertions, ccsd.has("max_concurrent_cameras"), "concurrency: supported => max_concurrent_cameras present")
-
-	if payload.has("warnings"):
-		_assert(assertions, typeof(payload["warnings"]) == TYPE_ARRAY, "warnings: root warnings is Array when present")
-	if typeof(cameras_v) == TYPE_ARRAY:
-		for c2 in cameras_v:
-			if typeof(c2) != TYPE_DICTIONARY:
-				continue
-			var cd2: Dictionary = c2
-			if cd2.has("warnings"):
-				_assert(assertions, typeof(cd2["warnings"]) == TYPE_ARRAY, "warnings: per-camera warnings is Array when present")
 
 	if payload.has("error"):
 		_assert(assertions, typeof(payload["error"]) == TYPE_STRING, "error: error field is String when present")
@@ -118,13 +106,35 @@ func run(_runner: HarnessRunner) -> Dictionary:
 		_assert(assertions, typeof(user_v) == TYPE_DICTIONARY, "fileio: user://camera_capabilities.json parses")
 		if typeof(user_v) == TYPE_DICTIONARY:
 			var user_d: Dictionary = user_v
+			_validate_schema_dict("json:user://camera_capabilities.json", user_d, validator, root_schema, assertions, notes)
 			_assert(assertions, user_d.get("sdk_version", -1) == payload.get("sdk_version", -2), "fileio: sdk_version matches return payload")
 			_assert(assertions, String(user_d.get("device_model", "")) == String(payload.get("device_model", "")), "fileio: device_model matches return payload")
 			var uc: Variant = user_d.get("cameras", [])
 			if typeof(uc) == TYPE_ARRAY and typeof(cameras_v) == TYPE_ARRAY:
-				_assert(assertions, uc.size() == cameras_v.size(), "fileio: camera count matches return payload")
+				var uc_arr: Array = uc
+				var cameras_arr: Array = cameras_v
+				_assert(assertions, uc_arr.size() == cameras_arr.size(), "fileio: camera count matches return payload")
 
 	return _finish(_status_from_assertions(assertions), assertions, notes, artifacts)
+
+func _parse_dict(json_text: String, label: String, assertions: Array) -> Dictionary:
+	var v: Variant = JSON.parse_string(json_text)
+	var ok: bool = typeof(v) == TYPE_DICTIONARY
+	_assert(assertions, ok, "json: %s parses to Dictionary" % label)
+	if not ok:
+		return {}
+	return v
+
+func _validate_schema_dict(label: String, payload: Dictionary, validator: JsonSchemaValidator, root_schema: Dictionary, assertions: Array, notes: Array[String]) -> void:
+	var result: Dictionary = validator.validate(payload, root_schema)
+	var valid: bool = bool(result.get("valid", false))
+	_assert(assertions, valid, "%s: schema valid" % label)
+	if not valid:
+		var errs: Array = result.get("errors", [])
+		notes.append("%s: schema invalid (%d errors)" % [label, errs.size()])
+		var lim: int = int(min(5, errs.size()))
+		for i in range(lim):
+			notes.append("%s: %s" % [label, JSON.stringify(errs[i])])
 
 func _non_empty_string(v: Variant) -> bool:
 	return typeof(v) == TYPE_STRING and String(v).strip_edges() != ""

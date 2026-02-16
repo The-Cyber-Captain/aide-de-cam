@@ -32,7 +32,7 @@ func _gui_input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventScreenTouch:
-		var local_pos : Vector2 = event.position # in _gui_input: local-to-control coords
+		var local_pos : Vector2 = event.position
 
 		if event.pressed:
 			_touch_armed = Rect2(Vector2.ZERO, size).has_point(local_pos)

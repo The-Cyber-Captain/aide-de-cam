@@ -13,8 +13,8 @@ config_version=5
 config/name="AideDeCamDemo"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.3", "GL Compatibility")
-boot_splash/image="res://branding/splash-demo.png"
-config/icon="res://branding/android_adaptive_icon.png"
+boot_splash/image="res://branding/splash-demo-newSize.png"
+config/icon="res://branding/store_icon.png"
 boot_splash/minimum_display_time=2500
 
 [autoload]
@@ -25,10 +25,15 @@ AideDeCam="*res://addons/aide_de_cam/aidedecam.gd"
 
 window/size/viewport_width=1920
 window/size/viewport_height=1080
+window/handheld/orientation=4
 
 [editor_plugins]
 
 enabled=PackedStringArray("res://addons/aide_de_cam/plugin.cfg")
+
+[gui]
+
+theme/custom="res://themes/base_theme.tres"
 
 [input_devices]
 

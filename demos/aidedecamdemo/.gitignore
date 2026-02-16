@@ -1,4 +1,13 @@
 # Godot 4+ specific ignores
 .godot/
 /android/
+
+# Android signing keys
+*.keystore
+*.jks
+*.keystore.*
+android/debug.keystore
+android/release.keystore
+
+# The aide_de_cam addon
 addons/aide_de_cam

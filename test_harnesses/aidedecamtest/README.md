@@ -16,16 +16,14 @@ This is a working tool you can modify as required; presented as a Godot project.
   `user://aidedecam_harness_report.json`
 
 ## Install
-0. Install the plugin (copy `aide_de_cam` into `addons` and enable)
-#1. Copy the `tests/` folder into your project root (or wherever you prefer).
-#2. Ensure your wrapper autoload node name is `AideDeCam` (as discussed).
-#3. Ensure the Android plugin singleton is available as `AideDeCam`.
+1. Install the plugin (copy `aide_de_cam` into `addons` and enable)
+2. Create an Android export config.
 
 ## Run
 - Open project.godot (AideDeCamTest)
-- Run Main 
-- Run on Android device (or Android Editor run).
+- Export & Run / one-touch-deploy on a suitable Android device.
 - Check console and `user://aidedecam_harness_report.json`.
+(Useful: adb shell run-as com.sixdegreesofcrispybacon.aidedecamdemo <ls files/aidedecam_harness_report.json>)
 
 ## Notes
 - The schema validator supports exactly the keywords used by the v1 schema and **fails loudly** on new/unknown keywords
