@@ -12,5 +12,5 @@ default_font_size = 25
 MarginContainer/constants/margin_bottom = 25
 MarginContainer/constants/margin_left = 25
 MarginContainer/constants/margin_right = 25
-MarginContainer/constants/margin_top = 25
+MarginContainer/constants/margin_top = 15
 Panel/styles/panel = SubResource("StyleBoxFlat_4u7hk")
