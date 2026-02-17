@@ -78,7 +78,7 @@ Sure, why not? Enjoy. 😉
 - Plug in a suitable device.
 - One-touch deploy.
 
-[TODO]: Add screenshot
+
 
 ### Licensing
 Code: The Unlicense  
