@@ -86,7 +86,7 @@ Code: The Unlicense
 Build tooling: Gradle Wrapper (Apache-2.0)[^2]  
 
 Fonts: Bitcount_Single (SIL Open Font License-1.1)[^3]
-[^2][^3]:See `THIRD_PARTY_NOTICES.md`  
+[^2]:[^3]:See `THIRD_PARTY_NOTICES.md`  
 
 ### Support me! 🥛🍞
 

@@ -83,10 +83,15 @@ Sure, why not? Enjoy. 😉
 
 
 <!-- RELEASE:EXCLUDE:BEGIN -->
-<img src="screenshots/v1_quest3_example_all_cams.jpg" alt="Quest3 example" width="300" height="200">
+Quest3 example:
+![Example1 Quest3](screenshots/v1_quest3_example_all_cams.jpg)
+
+<img src="screenshots/v1_quest3_example_all_cams.jpg" alt="html example1" width="300" height="200">
+<img src="screenshots/v1_quest3_example_all_cams.jpg" alt="html example2" width="500" height="500">
+
 Some gap text
 Quest3 example:
-![Example Quest3](screenshots/v1_quest3_example_all_cams.jpg)
+![Example2 Quest3](screenshots/v1_quest3_example_all_cams.jpg)
 <!-- RELEASE:EXCLUDE:END -->
 
 ### Licensing
@@ -95,7 +100,7 @@ Code: The Unlicense
 Build tooling: Gradle Wrapper (Apache-2.0)[^2]  
 
 Fonts: Bitcount_Single (SIL Open Font License-1.1)[^3]
-[^2][^3]:See `THIRD_PARTY_NOTICES.md`  
+[^2]:[^3]:See `THIRD_PARTY_NOTICES.md`  
 
 ### Support me! 🥛🍞
 
