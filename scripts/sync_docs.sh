@@ -18,7 +18,15 @@ strip_release_blocks() {
 rewrite_docs_asset_paths_for_root() {
   # In docs/README.md, author image/link paths as: (screenshots/...)
   # In root README.md, they must be: (docs/screenshots/...)
-  perl -pe 's#(\]\()screenshots/#$1docs/screenshots/#g; s#(\]\[)screenshots/#$1docs/screenshots/#g' "$1"
+  
+  perl -pe '
+  s#(\]\()screenshots/#$1docs/screenshots/#g;
+  s#(\]\[)screenshots/#$1docs/screenshots/#g;
+
+  # HTML <img ... src=...> (quoted or unquoted, whitespace tolerant, case-insensitive)
+  s#(<img\b[^>]*\bsrc\s*=\s*)(["'\''"]?)screenshots/#$1$2docs/screenshots/#gi;
+' "$1"
+
 }
 
 # 1) Sync fixed-topic docs

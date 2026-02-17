@@ -83,7 +83,7 @@ Sure, why not? Enjoy. 😉
 
 
 <!-- RELEASE:EXCLUDE:BEGIN -->
-<img src="screenshots/v1_quest3_example_all_cams.jpg" alt="Quest3 example" width="300" height="200">
+<img src="docs/screenshots/v1_quest3_example_all_cams.jpg" alt="Quest3 example" width="300" height="200">
 Some gap text
 Quest3 example:
 ![Example Quest3](docs/screenshots/v1_quest3_example_all_cams.jpg)
