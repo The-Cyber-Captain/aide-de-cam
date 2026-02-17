@@ -1,7 +1,7 @@
 # Aide-De-Cam
 
 ## A Godot Android[^1] Plugin which reports on camera 'capabilities'.  
-[^1]:*Leveraging Camera2, so Android-only.*
+[^camera2]:*Leveraging Camera2, so Android-only.*
 
 ## Requirements
 - **Godot 4.3 or higher**
@@ -87,7 +87,9 @@ Quest3 example:
 ![Example1 Quest3](screenshots/v1_quest3_example_all_cams.jpg)
 
 <img src="screenshots/v1_quest3_example_all_cams.jpg" alt="html example1" width="300" height="200">
-<img src="screenshots/v1_quest3_example_all_cams.jpg" alt="html example2" width="500" height="500">
+<img src="v1_hammer_construction_results_panel.png" alt="Hammer Construction" width="500" height="225">  
+<img src="v1_motorola_g5_results_panels.png" alt="Moto G5" width="500" height="280">  
+
 
 Some gap text
 Quest3 example:
@@ -97,10 +99,10 @@ Quest3 example:
 ### Licensing
 Code: The Unlicense  
 
-Build tooling: Gradle Wrapper (Apache-2.0)[^2]  
+Build tooling: Gradle Wrapper (Apache-2.0)[^third-party]  
 
-Fonts: Bitcount_Single (SIL Open Font License-1.1)[^3]
-[^2]:[^3]:See `THIRD_PARTY_NOTICES.md`  
+Fonts: Bitcount_Single (SIL Open Font License-1.1)[^third-party]
+[^third-party]:*See `THIRD_PARTY_NOTICES.md`*  
 
 ### Support me! 🥛🍞
 

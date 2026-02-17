@@ -1,7 +1,7 @@
 # Aide-De-Cam
 
 ## A Godot Android[^1] Plugin which reports on camera 'capabilities'.  
-[^1]:*Leveraging Camera2, so Android-only.*
+[^camera2]:*Leveraging Camera2, so Android-only.*
 
 ## Requirements
 - **Godot 4.3 or higher**
@@ -83,10 +83,10 @@ Sure, why not? Enjoy. 😉
 ### Licensing
 Code: The Unlicense  
 
-Build tooling: Gradle Wrapper (Apache-2.0)[^2]  
+Build tooling: Gradle Wrapper (Apache-2.0)[^third-party]  
 
-Fonts: Bitcount_Single (SIL Open Font License-1.1)[^3]
-[^2]:[^3]:See `THIRD_PARTY_NOTICES.md`  
+Fonts: Bitcount_Single (SIL Open Font License-1.1)[^third-party]
+[^third-party]:*See `THIRD_PARTY_NOTICES.md`*  
 
 ### Support me! 🥛🍞
 
