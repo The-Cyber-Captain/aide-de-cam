@@ -1,6 +1,6 @@
 # Aide-De-Cam
 
-## A Godot Android[^1] Plugin which reports on camera 'capabilities'.  
+## A Godot Android[^camera2] Plugin which reports on camera 'capabilities'.  
 [^camera2]:*Leveraging Camera2, so Android-only.*
 
 ## Requirements
