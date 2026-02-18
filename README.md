@@ -83,17 +83,15 @@ Sure, why not? Enjoy. 😉
 
 
 <!-- RELEASE:EXCLUDE:BEGIN -->
-Quest3 example:
-![Example1 Quest3](docs/screenshots/v1_quest3_example_all_cams.jpg)
-
-<img src="docs/screenshots/v1_quest3_example_all_cams.jpg" alt="html example1" width="300" height="200">
+- Screenshots:
 <img src="docs/screenshots/v1_hammer_construction_results_panel.png" alt="Hammer Construction" width="500" height="225">  
 <img src="docs/screenshots/v1_motorola_g5_results_panels.png" alt="Moto G5" width="500" height="280">  
-
-
-Some gap text
-Quest3 example:
-![Example2 Quest3](docs/screenshots/v1_quest3_example_all_cams.jpg)
+<img src="docs/screenshots/v1_samsung_sm_results_panels.jpg" alt="Samsung SM" width="500" height="225">  
+Quest3: Avatar only  
+<img src="v1_quest3_example_loft_avatar_only.jpg" alt="Quest3; all permissions" width="640" height="360">  
+Quest3: Camera permissions requested  
+<img src="v1_quest3_example_loft_all_cams.jpg" alt="Quest3; all permissions" width="640" height="360">  
+<img src="v1_quest3_example_viaduct_all_cams.jpg" alt="Quest3; all permissions" width="640" height="360">  
 <!-- RELEASE:EXCLUDE:END -->
 
 ### Licensing
