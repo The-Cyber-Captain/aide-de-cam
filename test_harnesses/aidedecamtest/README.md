@@ -17,7 +17,8 @@ This is a working tool you can modify as required; presented as a Godot project.
 
 ## Install
 1. Install the plugin (copy `aide_de_cam` into `addons` and enable)
-2. Create an Android export config.
+2. Create an Android export config;  
+	* Set adaptive foreground icon (branding/android_adaptive_icon.png) for maximum pretty.  
 
 ## Run
 - Open project.godot (AideDeCamTest)

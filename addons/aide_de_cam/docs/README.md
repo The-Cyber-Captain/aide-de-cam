@@ -74,7 +74,9 @@ See: docs/HOWTO-build_draft.txt
 
 - Open the demo project, demos/aidedecamdemo.
 - Install Aide-De-Cam.
-- Create an Android export preset; add Camera permissions for full functionality
+- Create an Android export preset;  
+  * Add Camera permissions for full functionality.  
+  * Set adaptive foreground icon (branding/android_adaptive_icon.png) for maximum pretty.  
 - Plug in a suitable device.
 - One-touch deploy.
 
