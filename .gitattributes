@@ -1,7 +1,8 @@
 # Normalize line endings for all files that Git considers text files.
 * text=auto eol=lf
 
-# Only include the addons folder when downloading from the Asset Library.
+# Don't include *anything* in git-archive (which Releases call)
 /**        export-ignore
-/addons    !export-ignore
-/addons/** !export-ignore
+# Only include the addons folder when downloading from the Asset Library.
+#/addons    !export-ignore
+#/addons/** !export-ignore

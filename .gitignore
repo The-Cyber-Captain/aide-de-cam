@@ -63,6 +63,7 @@ Thumbs.db
 
 # Godot AAR library (large binary, download separately)
 plugin/libs/*.aar
+addons/*.aar
 
 # Generated APK/AAB files
 *.apk
