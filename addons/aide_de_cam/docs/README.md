@@ -9,7 +9,7 @@
 
 ## Compatibility
 - Built against: Godot 4.3
-- Tested with: Godot 4.3, ~~4.4,~~ 4.5, ~~4.6~~
+- Tested with: Godot 4.3, 4.4, 4.5, 4.6
 - Should work with future Godot 4.x releases
 
 ### How to use:
@@ -68,7 +68,7 @@ NOTE: Enabling the plugin adds an AideDeCam autoload into the scene. Don't panic
 #### Building from source:
 
 Sure, why not? Enjoy. 😉  
-[WIP]: See: docs/HOWTO-build_draft.txt
+See: docs/HOWTO-build_draft.txt
 
 ### Demo
 
